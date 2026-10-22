@@ -40,7 +40,19 @@ MIGRATIONS = [
       input_path TEXT NOT NULL, reason TEXT NOT NULL, recorded_at TEXT NOT NULL,
       UNIQUE(ingestion_run_id, source_item_id)
     );
+    """,
     """
+    CREATE TABLE IF NOT EXISTS multimodal_analyses (
+      id INTEGER PRIMARY KEY, meme_id INTEGER NOT NULL REFERENCES memes(id), image_sha256 TEXT NOT NULL,
+      pipeline_version TEXT NOT NULL, configuration_digest TEXT NOT NULL, status TEXT NOT NULL,
+      ocr_text TEXT NOT NULL DEFAULT '', ocr_boxes_json TEXT NOT NULL DEFAULT '[]', ocr_confidence REAL,
+      visual_caption TEXT NOT NULL DEFAULT '', combined_context TEXT NOT NULL DEFAULT '',
+      ocr_provider TEXT NOT NULL, caption_provider TEXT NOT NULL, provenance_json TEXT NOT NULL DEFAULT '{}',
+      error_details TEXT, warning_details TEXT, processed_at TEXT NOT NULL,
+      UNIQUE(meme_id, image_sha256, pipeline_version, configuration_digest)
+    );
+    CREATE INDEX IF NOT EXISTS idx_analysis_meme_status ON multimodal_analyses(meme_id, status);
+    """,
 ]
 
 

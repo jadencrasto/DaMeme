@@ -2,6 +2,8 @@
 
 DaMeme is a research-first, emotion-aware meme recommendation project. **Phase 2** adds a local, resumable dataset-management pipeline; it does not download research datasets, analyze meme content, or return recommendations.
 
+Phase 3 adds a lazy, optional OCR/captioning pipeline for registered local images. See [pipeline](docs/multimodal-pipeline.md) and [model setup](docs/model-setup.md); no model weights are bundled or downloaded automatically.
+
 ## Repository map
 
 - `backend/` — versioned FastAPI health endpoint and tests.

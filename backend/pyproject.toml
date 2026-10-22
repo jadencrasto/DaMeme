@@ -13,10 +13,13 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+  "easyocr>=1.7,<2",
   "httpx==0.28.1",
   "kagglehub==0.3.13",
   "pytest==8.3.4",
   "ruff==0.9.10",
+  "torch>=2.6,<3",
+  "transformers>=4.48,<5",
 ]
 
 [tool.pytest.ini_options]

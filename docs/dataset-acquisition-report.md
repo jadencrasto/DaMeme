@@ -56,4 +56,31 @@ The current pipeline is bounded-memory: it decodes one image at a time and check
 
 ## Result
 
+## Phase 3.2 local research integration
+
+**Verification date:** 22 October 2026
+**Database:** `data/processed/phase32-research.db` (Git-ignored)
+**Image policy:** all source images and extracted annotations remain local and Git-ignored.
+
+### MOOD / ALFRED
+
+The supplied `TAC24_meme_emotion.zip` was used only as a local research artifact. DaMeme read `meme_emotion/final.csv`, selected no more than 50 records by round-robin over its six positive emotion columns, and extracted only the matching members from nested `final.zip`.
+
+- Extracted: **50** images.
+- Ingested: **50** images; 0 rejects, 0 exact duplicates, 0 near-duplicate candidates.
+- Category distribution: anger 9; fear 9; disgust 8; joy 8; sadness 8; surprise 8.
+- Preserved per record: original filename, all six original `final.csv` emotion values, sentiment, derived positive-label field, source URL, and label provenance (`MOOD final.csv`). `final.csv` has no split column, so no split was invented.
+- License: **unknown**. The official repository and supplied archive did not expose explicit dataset licensing terms during verification. The sample is for private local research only and must not be committed or redistributed.
+
+### MemeMatch
+
+Kaggle's public metadata endpoint reported version 1, 32,002,485,265 total bytes, and an **Unknown** license. The existing selective KaggleHub helper downloaded only `annotations/annotations/local_context.csv` (36.4 MB); it contains filename/context pairs but has no header and does not reveal the image directory layout. Kaggle's public metadata response listed no files.
+
+A bounded request for the first annotated filename as a root-relative image returned Kaggle HTTP 404. Therefore DaMeme did **not** guess paths, crawl URLs, or issue a root dataset request.
+
+- Image metadata files acquired: **1** local-context CSV.
+- MemeMatch images downloaded/ingested: **0 / 0**.
+- Blocker: the public source exposes no file manifest, so a verified dataset-relative image path is unavailable. Obtain an authoritative layout/manifest from the maintainers or Kaggle, then use `download_dataset_file(relative_path=...)` for each approved image. Do not use a dataset-root request, which would risk the 32 GB archive.
+- License remains **unknown**; preserve any future context/sentiment/topic/usage fields verbatim and retain images locally only.
+
 Phase 2 software is ready for a small local import when an official source’s access terms are verified. DaMeme is **not yet ready for a production or 5K+ corpus acquisition** because the necessary source-specific license/package facts are unresolved. Phase 3 should not begin until an authorized, provenance-complete smoke dataset exists.

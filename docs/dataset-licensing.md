@@ -6,4 +6,4 @@ Use `verified` only after reviewing the dataset's governing terms. Use `pending`
 
 Generated manifests are ignored by Git because they can contain restricted identifiers, URLs, or source annotations. Commit only redacted documentation and tiny synthetic test fixtures.
 
-The user-provided MOOD archive is an official-source artifact but does not, by itself, establish redistribution or research-use permission. Keep it outside the repository; do not commit, redistribute, or extract its image payload until terms are confirmed.
+The user-provided MOOD archive is an official-source artifact but does not, by itself, establish redistribution or research-use permission. Phase 3.2 extracted a user-authorized, private local sample into a Git-ignored directory for research verification. Keep the archive and images outside version control; do not commit or redistribute them. Explicit dataset terms remain unverified.
