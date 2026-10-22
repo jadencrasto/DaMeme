@@ -1,0 +1,16 @@
+@import "tailwindcss";
+
+:root { font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: #fff8f1; background: #191124; font-synthesis: none; }
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; background: radial-gradient(circle at 80% 10%, #df547b55, transparent 30rem), radial-gradient(circle at 10% 80%, #7b5bea66, transparent 30rem), #191124; }
+button, input { font: inherit; }
+.shell { min-height: 100vh; padding: 1.75rem clamp(1.25rem, 5vw, 6rem); display: flex; flex-direction: column; }
+.nav { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+.brand { color: inherit; text-decoration: none; font-size: 1.35rem; font-weight: 800; letter-spacing: -0.08em; }.brand span { color: #ffbf69; }
+.health { margin: 0; font-size: .8rem; padding: .35rem .7rem; border: 1px solid #ffffff33; border-radius: 99px; }.health--online { color: #9ef0b8; }.health--offline { color: #ff9a9a; }
+.hero { width: min(820px, 100%); margin: auto; padding: 4rem 0; }.eyebrow { color: #ffbf69; font-size: .8rem; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; }
+h1 { margin: .5rem 0 1.25rem; font-family: Georgia, serif; font-size: clamp(3.3rem, 10vw, 7.5rem); line-height: .9; letter-spacing: -.075em; } h1 em { color: #c5b6ff; }
+.intro { max-width: 620px; color: #dfd6e7; font-size: clamp(1rem, 2vw, 1.25rem); line-height: 1.6; }
+.search-card { margin-top: 3rem; padding: 1.2rem; background: #fffcf61a; border: 1px solid #ffffff24; border-radius: 1.25rem; backdrop-filter: blur(10px); }.search-card label { display: block; margin-bottom: .7rem; font-weight: 700; }.search-row { display: flex; gap: .6rem; }.search-row input { width: 100%; padding: .85rem 1rem; border: 1px solid #ffffff40; border-radius: .7rem; background: #130d1a; color: #fff; }.search-row button { border: 0; border-radius: .7rem; padding: .8rem 1rem; background: #ffbf69; color: #211128; font-weight: 800; white-space: nowrap; }.search-row input:disabled, .search-row button:disabled { cursor: not-allowed; opacity: .72; }.search-card p, footer { color: #c4b9cf; font-size: .85rem; } footer { margin-top: auto; padding-top: 1rem; }
+input:focus-visible, button:focus-visible, a:focus-visible { outline: 3px solid #ffbf69; outline-offset: 3px; }
+@media (max-width: 540px) { .search-row { flex-direction: column; } .search-row button { width: 100%; } }
