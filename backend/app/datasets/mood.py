@@ -27,8 +27,8 @@ def _positive_emotions(row: dict[str, str]) -> list[str]:
 
 def _select_rows(rows: Iterable[dict[str, str]], limit: int) -> list[dict[str, str]]:
     """Round-robin positive labels to retain a small, category-spread sample."""
-    if limit < 1 or limit > 50:
-        raise ValueError("MOOD sample limit must be between 1 and 50")
+    if limit < 1 or limit > 200:
+        raise ValueError("MOOD development sample limit must be between 1 and 200")
     buckets = {emotion: [] for emotion in EMOTIONS}
     for row in rows:
         for emotion in _positive_emotions(row):

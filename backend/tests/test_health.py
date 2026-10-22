@@ -1,4 +1,5 @@
 import asyncio
+import sys
 
 from httpx import ASGITransport, AsyncClient
 
@@ -18,6 +19,8 @@ def test_health_endpoint_returns_valid_response() -> None:
             response = await client.get("/api/v1/health")
             return response.status_code, response.json()
 
+    if sys.platform == "win32":
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     status_code, payload = asyncio.run(request_health())
 
     assert status_code == 200

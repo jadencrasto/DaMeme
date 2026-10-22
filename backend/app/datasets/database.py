@@ -53,15 +53,36 @@ MIGRATIONS = [
     );
     CREATE INDEX IF NOT EXISTS idx_analysis_meme_status ON multimodal_analyses(meme_id, status);
     """,
+    """
+    CREATE TABLE IF NOT EXISTS emotion_features (
+      id INTEGER PRIMARY KEY, meme_id INTEGER NOT NULL REFERENCES memes(id), feature_version TEXT NOT NULL,
+      text_encoder TEXT NOT NULL, image_encoder TEXT NOT NULL, text_json TEXT NOT NULL, image_json TEXT NOT NULL,
+      feature_hash TEXT NOT NULL, status TEXT NOT NULL, error_details TEXT, extracted_at TEXT NOT NULL,
+      UNIQUE(meme_id, feature_version)
+    );
+    CREATE TABLE IF NOT EXISTS emotion_models (
+      id INTEGER PRIMARY KEY, model_name TEXT NOT NULL, model_version TEXT NOT NULL, artifact_path TEXT NOT NULL,
+      feature_version TEXT NOT NULL, configuration_json TEXT NOT NULL, metrics_json TEXT NOT NULL DEFAULT '{}',
+      trained_at TEXT NOT NULL, UNIQUE(model_name, model_version)
+    );
+    CREATE TABLE IF NOT EXISTS emotion_predictions (
+      id INTEGER PRIMARY KEY, meme_id INTEGER NOT NULL REFERENCES memes(id), model_id INTEGER NOT NULL REFERENCES emotion_models(id),
+      feature_hash TEXT NOT NULL, status TEXT NOT NULL, emotion_probabilities_json TEXT NOT NULL DEFAULT '{}',
+      sentiment_probabilities_json TEXT NOT NULL DEFAULT '{}', error_details TEXT, predicted_at TEXT NOT NULL,
+      UNIQUE(meme_id, model_id, feature_hash)
+    );
+    CREATE INDEX IF NOT EXISTS idx_emotion_predictions_meme ON emotion_predictions(meme_id, model_id);
+    """,
 ]
 
 
 def connect(database: Path) -> sqlite3.Connection:
     database.parent.mkdir(parents=True, exist_ok=True)
-    connection = sqlite3.connect(database)
+    connection = sqlite3.connect(database, timeout=30)
     connection.row_factory = sqlite3.Row
     connection.execute("PRAGMA foreign_keys = ON")
     connection.execute("PRAGMA journal_mode = WAL")
+    connection.execute("PRAGMA busy_timeout = 30000")
     return connection
 
 
