@@ -1,0 +1,70 @@
+import sqlite3
+from pathlib import Path
+
+MIGRATIONS = [
+    """
+    CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS dataset_sources (
+      id INTEGER PRIMARY KEY, name TEXT NOT NULL, version TEXT NOT NULL, source_url TEXT NOT NULL,
+      license_status TEXT NOT NULL, license_notes TEXT NOT NULL DEFAULT '', access_notes TEXT NOT NULL DEFAULT '',
+      manifest_reference TEXT, retrieval_date TEXT NOT NULL, source_reported_count INTEGER,
+      UNIQUE(name, version)
+    );
+    CREATE TABLE IF NOT EXISTS ingestion_runs (
+      id INTEGER PRIMARY KEY, dataset_source_id INTEGER NOT NULL REFERENCES dataset_sources(id),
+      input_root TEXT NOT NULL, status TEXT NOT NULL, checkpoint_index INTEGER NOT NULL DEFAULT 0,
+      configuration_json TEXT NOT NULL, started_at TEXT NOT NULL, finished_at TEXT, UNIQUE(dataset_source_id, input_root)
+    );
+    CREATE TABLE IF NOT EXISTS memes (
+      id INTEGER PRIMARY KEY, dataset_source_id INTEGER NOT NULL REFERENCES dataset_sources(id),
+      original_source_id TEXT NOT NULL, original_source_url TEXT, local_image_path TEXT,
+      image_format TEXT, width INTEGER, height INTEGER, file_size INTEGER, sha256 TEXT, perceptual_hash TEXT,
+      dataset_split TEXT, emotion_label TEXT, label_provenance TEXT, annotation_json TEXT NOT NULL DEFAULT '{}',
+      license_status TEXT NOT NULL, ingestion_timestamp TEXT NOT NULL, processing_status TEXT NOT NULL,
+      error_details TEXT, dataset_version TEXT NOT NULL, source_manifest_reference TEXT,
+      UNIQUE(dataset_source_id, original_source_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_memes_sha256 ON memes(sha256);
+    CREATE INDEX IF NOT EXISTS idx_memes_source_status ON memes(dataset_source_id, processing_status);
+    CREATE TABLE IF NOT EXISTS perceptual_hash_bands (
+      meme_id INTEGER NOT NULL REFERENCES memes(id), band TEXT NOT NULL, PRIMARY KEY(meme_id, band)
+    );
+    CREATE INDEX IF NOT EXISTS idx_phash_bands_band ON perceptual_hash_bands(band);
+    CREATE TABLE IF NOT EXISTS duplicate_relationships (
+      id INTEGER PRIMARY KEY, meme_id INTEGER NOT NULL REFERENCES memes(id), related_meme_id INTEGER NOT NULL REFERENCES memes(id),
+      relation_type TEXT NOT NULL CHECK(relation_type IN ('exact', 'near')), distance INTEGER NOT NULL,
+      created_at TEXT NOT NULL, UNIQUE(meme_id, related_meme_id, relation_type), CHECK(meme_id != related_meme_id)
+    );
+    CREATE TABLE IF NOT EXISTS ingestion_failures (
+      id INTEGER PRIMARY KEY, ingestion_run_id INTEGER NOT NULL REFERENCES ingestion_runs(id), source_item_id TEXT NOT NULL,
+      input_path TEXT NOT NULL, reason TEXT NOT NULL, recorded_at TEXT NOT NULL,
+      UNIQUE(ingestion_run_id, source_item_id)
+    );
+    """
+]
+
+
+def connect(database: Path) -> sqlite3.Connection:
+    database.parent.mkdir(parents=True, exist_ok=True)
+    connection = sqlite3.connect(database)
+    connection.row_factory = sqlite3.Row
+    connection.execute("PRAGMA foreign_keys = ON")
+    connection.execute("PRAGMA journal_mode = WAL")
+    return connection
+
+
+def migrate(connection: sqlite3.Connection) -> None:
+    connection.execute(
+        "CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL)"
+    )
+    current = {
+        row["version"] for row in connection.execute("SELECT version FROM schema_migrations")
+    }
+    for version, sql in enumerate(MIGRATIONS, start=1):
+        if version not in current:
+            connection.executescript(sql)
+            connection.execute(
+                "INSERT INTO schema_migrations(version, applied_at) VALUES (?, datetime('now'))",
+                (version,),
+            )
+    connection.commit()

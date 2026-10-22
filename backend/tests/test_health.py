@@ -1,4 +1,6 @@
-from fastapi.testclient import TestClient
+import asyncio
+
+from httpx import ASGITransport, AsyncClient
 
 from app.main import create_app
 
@@ -9,11 +11,17 @@ def test_application_initializes() -> None:
 
 
 def test_health_endpoint_returns_valid_response() -> None:
-    client = TestClient(create_app())
-    response = client.get("/api/v1/health")
+    async def request_health() -> tuple[int, dict[str, str]]:
+        async with AsyncClient(
+            transport=ASGITransport(app=create_app()), base_url="http://testserver"
+        ) as client:
+            response = await client.get("/api/v1/health")
+            return response.status_code, response.json()
 
-    assert response.status_code == 200
-    assert response.json() == {
+    status_code, payload = asyncio.run(request_health())
+
+    assert status_code == 200
+    assert payload == {
         "status": "ok",
         "service": "dameme-api",
         "environment": "development",

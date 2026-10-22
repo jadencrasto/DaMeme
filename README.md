@@ -1,6 +1,6 @@
 # DaMeme
 
-DaMeme is a research-first, emotion-aware meme recommendation project. **Phase 1 only** is implemented: research/architecture documentation plus a minimal FastAPI and React foundation. It does not download models or datasets, analyze memes, or return recommendations.
+DaMeme is a research-first, emotion-aware meme recommendation project. **Phase 2** adds a local, resumable dataset-management pipeline; it does not download research datasets, analyze meme content, or return recommendations.
 
 ## Repository map
 
@@ -14,6 +14,16 @@ DaMeme is a research-first, emotion-aware meme recommendation project. **Phase 1
 - Python 3.11 (`py -3.11 --version`)
 - [uv](https://docs.astral.sh/uv/) (`uv --version`)
 - Node.js LTS and npm (`node --version`, `npm --version`)
+
+## Dataset management (Phase 2)
+
+The local-only ingestion CLI validates image files, keeps provenance, detects exact/near duplicates, checkpoints batches, exports manifests, and preserves supplied source splits/labels. It does not download anything. See [dataset sources](docs/dataset-sources.md), [schema](docs/dataset-schema.md), and [ingestion guide](docs/ingestion-pipeline.md).
+
+```powershell
+Set-Location backend
+uv run python -m app.datasets.cli --help
+uv run python -m app.datasets.cli --database ..\data\metadata.db init-db
+```
 
 ## Configure
 

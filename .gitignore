@@ -13,6 +13,10 @@ coverage/
 data/raw/
 data/processed/
 data/uploads/
+data/manifests/
+data/**/*.zip
+data/**/*.tar
+data/**/*.gz
 data/**/*.jpg
 data/**/*.jpeg
 data/**/*.png
