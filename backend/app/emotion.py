@@ -74,27 +74,45 @@ class PretrainedFeatureExtractor:
         self.device = device
         self._text_tokenizer = self._text_model = self._processor = self._blip = None
 
-    def text(self, content: str) -> np.ndarray:
+    @staticmethod
+    def _normalize(values: np.ndarray) -> np.ndarray:
+        """L2-normalize feature rows without producing NaNs for empty vectors."""
+        norms = np.linalg.norm(values, axis=1, keepdims=True)
+        return values / np.maximum(norms, 1e-12)
+
+    def embed_texts(self, contents: list[str]) -> np.ndarray:
+        """Embed a batch with the frozen MiniLM encoder used by Phase 4."""
         import torch
         from transformers import AutoModel, AutoTokenizer
 
+        if not contents:
+            return np.empty((0, 0), dtype=np.float32)
         if self._text_model is None:
             self._text_tokenizer = AutoTokenizer.from_pretrained(self.text_model_id)
             self._text_model = AutoModel.from_pretrained(self.text_model_id).to(self.device).eval()
         encoded = self._text_tokenizer(
-            content or "", return_tensors="pt", truncation=True, max_length=256
+            [content or "" for content in contents],
+            return_tensors="pt",
+            padding=True,
+            truncation=True,
+            max_length=256,
         ).to(self.device)
         with torch.inference_mode():
             output = self._text_model(**encoded).last_hidden_state
             weights = encoded["attention_mask"].unsqueeze(-1)
             pooled = (output * weights).sum(1) / weights.sum(1).clamp(min=1)
-        vector = pooled[0].cpu().numpy().astype(np.float32)
-        return vector / max(np.linalg.norm(vector), 1e-12)
+        return self._normalize(pooled.cpu().numpy().astype(np.float32))
 
-    def image(self, path: Path) -> np.ndarray:
+    def text(self, content: str) -> np.ndarray:
+        return self.embed_texts([content])[0]
+
+    def embed_images(self, paths: list[Path]) -> np.ndarray:
+        """Embed images with the frozen BLIP vision encoder used by Phase 4."""
         import torch
         from transformers import BlipForConditionalGeneration, BlipProcessor
 
+        if not paths:
+            return np.empty((0, 0), dtype=np.float32)
         if self._blip is None:
             self._processor = BlipProcessor.from_pretrained(self.image_model_id)
             self._blip = (
@@ -102,14 +120,23 @@ class PretrainedFeatureExtractor:
                 .to(self.device)
                 .eval()
             )
-        with Image.open(path) as source:
-            values = self._processor(images=source.convert("RGB"), return_tensors="pt")[
-                "pixel_values"
-            ].to(self.device)
+        images = []
+        try:
+            for path in paths:
+                with Image.open(path) as source:
+                    images.append(source.convert("RGB"))
+            values = self._processor(images=images, return_tensors="pt")["pixel_values"].to(
+                self.device
+            )
+        finally:
+            for image in images:
+                image.close()
         with torch.inference_mode():
             hidden = self._blip.vision_model(pixel_values=values).last_hidden_state.mean(dim=1)
-        vector = hidden[0].cpu().numpy().astype(np.float32)
-        return vector / max(np.linalg.norm(vector), 1e-12)
+        return self._normalize(hidden.cpu().numpy().astype(np.float32))
+
+    def image(self, path: Path) -> np.ndarray:
+        return self.embed_images([path])[0]
 
 
 def feature_hash(text: np.ndarray, image: np.ndarray) -> str:
