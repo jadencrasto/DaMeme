@@ -14,6 +14,8 @@ export interface Recommendation {
 }
 
 export interface RecommendationOptions { emotions: Emotion[]; sentiments: Sentiment[]; usage_categories: string[]; }
+export interface Mood { id: string; label: string; group: string; description: string; synonyms: string[]; classifier_weights: Record<string, number>; sentiment: Sentiment | null; }
+export interface MoodTaxonomy { moods: Mood[]; }
 export interface RecommendationStatus { ready: boolean; detail: string | null; meme_count: number; }
 
 export class ApiError extends Error {
@@ -40,8 +42,9 @@ function parameters(values: Record<string, string | number | undefined>, usage: 
 
 export const getRecommendationStatus = () => request<RecommendationStatus>("/api/v1/recommendations/status");
 export const getRecommendationOptions = () => request<RecommendationOptions>("/api/v1/recommendations/options");
+export const getMoods = () => request<MoodTaxonomy>("/api/v1/emotions");
 
-export function getTextRecommendations(input: { text: string; emotion?: Emotion; sentiment?: Sentiment; usage: string[]; limit: number; }) {
+export function getTextRecommendations(input: { text: string; emotion?: Emotion; mood?: string; sentiment?: Sentiment; usage: string[]; limit: number; }) {
   const { usage, ...values } = input;
   return request<Recommendation[]>(`/api/v1/recommendations/text?${parameters(values, usage)}`);
 }

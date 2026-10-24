@@ -66,6 +66,49 @@ def test_text_api_exposes_similarity_gate_and_template_cap() -> None:
     assert kwargs["diversity_max_per_template"] == 1
 
 
+def test_text_api_defaults_to_a_larger_reranking_pool_and_safety_filter() -> None:
+    engine = FakeEngine()
+    text_recommendations(engine, "study")
+    _, kwargs = engine.text_calls[0]
+    assert kwargs["candidate_limit"] == 50
+    assert kwargs["exclude_unsafe"] is True
+    assert kwargs["diversity_max_per_template"] == 1
+    assert kwargs["retrieval_mode"] == "semantic"
+    assert kwargs["sentiment"] is None
+
+
+def test_text_api_only_forwards_sentiment_when_the_caller_supplies_it() -> None:
+    engine = FakeEngine()
+    text_recommendations(engine, "I passed", sentiment="positive")
+    assert engine.text_calls[0][1]["sentiment"] == "positive"
+
+
+def test_text_api_forwards_hybrid_controls_without_changing_response_schema() -> None:
+    engine = FakeEngine()
+    response = text_recommendations(
+        engine,
+        "I passed my exam",
+        retrieval_mode="hybrid_cross_encoder",
+        bm25_candidate_limit=75,
+        cross_encoder_limit=25,
+    )
+    _, kwargs = engine.text_calls[0]
+    assert response[0].model_dump().keys() == {
+        "meme_id",
+        "semantic_similarity",
+        "emotion_relevance",
+        "sentiment_relevance",
+        "final_score",
+        "usage_categories",
+        "explanation",
+        "image_available",
+        "image_url",
+    }
+    assert kwargs["retrieval_mode"] == "hybrid_cross_encoder"
+    assert kwargs["bm25_candidate_limit"] == 75
+    assert kwargs["cross_encoder_limit"] == 25
+
+
 def test_validation_unavailable_assets_and_safe_image_delivery(tmp_path: Path) -> None:
     engine = FakeEngine(unavailable=True)
     assert status(engine).ready is False

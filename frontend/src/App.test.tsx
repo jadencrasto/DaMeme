@@ -14,6 +14,7 @@ function mockFetch(recommendations = [recommendation]) {
   vi.stubGlobal("fetch", vi.fn((url: string) => {
     if (url.includes("/status")) return Promise.resolve(new Response(JSON.stringify({ ready: true, detail: null, meme_count: 1 })));
     if (url.includes("/options")) return Promise.resolve(new Response(JSON.stringify({ emotions: ["joy", "sadness"], sentiments: ["positive"], usage_categories: ["parody"] })));
+    if (url.includes("/emotions")) return Promise.resolve(new Response(JSON.stringify({ moods: [{ id: "anxiety", label: "Anxiety", group: "Stress and negative", description: "worry", synonyms: ["worried"], classifier_weights: { fear: .75 }, sentiment: "negative" }] })));
     return Promise.resolve(new Response(JSON.stringify(recommendations)));
   }));
 }
@@ -39,18 +40,28 @@ describe("recommendation interface", () => {
     await waitFor(() => expect(screen.getByText("exam success")).toBeInTheDocument());
   });
 
+  it("fetches the mood taxonomy and sends a selected stable mood ID", async () => {
+    mockFetch(); render(<App />);
+    await screen.findByRole("button", { name: "Anxiety" });
+    fireEvent.click(screen.getByRole("button", { name: "Anxiety" }));
+    fireEvent.change(screen.getByLabelText("Describe your mood or situation"), { target: { value: "presentation" } });
+    fireEvent.click(screen.getByRole("button", { name: "Recommend memes" }));
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith(expect.stringContaining("mood=anxiety")));
+  });
+
   it("shows loading and backend-unavailable states", async () => {
     let resolveRecommendation: ((value: Response) => void) | undefined;
     vi.stubGlobal("fetch", vi.fn((url: string) => {
       if (url.includes("/status")) return Promise.resolve(new Response(JSON.stringify({ ready: true, detail: null, meme_count: 1 })));
       if (url.includes("/options")) return Promise.resolve(new Response(JSON.stringify({ emotions: ["joy"], sentiments: [], usage_categories: [] })));
+      if (url.includes("/emotions")) return Promise.resolve(new Response(JSON.stringify({ moods: [] })));
       return new Promise<Response>((resolve) => { resolveRecommendation = resolve; });
     }));
     render(<App />);
     await screen.findByLabelText("Describe your mood or situation");
     fireEvent.change(screen.getByLabelText("Describe your mood or situation"), { target: { value: "too much work" } });
     fireEvent.click(screen.getByRole("button", { name: "Recommend memes" }));
-    expect(screen.getByText("Searching semantic and emotion signals…")).toBeInTheDocument();
+    expect(screen.getByText("Searching semantic and mood signals…")).toBeInTheDocument();
     resolveRecommendation?.(new Response(JSON.stringify({ detail: "Recommendation assets are unavailable" }), { status: 503 }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Recommendation assets are unavailable");
   });

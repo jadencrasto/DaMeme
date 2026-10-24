@@ -19,6 +19,15 @@ from app.emotion import EMOTIONS, SENTIMENTS
 from app.retrieval import RetrievalService, SearchResult
 
 SOURCE_SCOPES = ("local", "global")
+DEFAULT_TEXT_WEIGHTS = (0.90, 0.08, 0.02)
+VULNERABLE_EMOTIONS = frozenset({"sadness", "fear", "anger", "disgust"})
+ALWAYS_EXCLUDED_PATTERNS = (
+    r"\bsuicid(?:e|al)\b", r"\bself[ -]?harm\b", r"\bkill(?:ing)? myself\b",
+    r"\bend my life\b", r"\boverdose\b", r"\bcut(?:ting)? myself\b",
+)
+VULNERABLE_EXCLUDED_PATTERNS = (
+    r"\bsexual assault\b", r"\bdomestic violence\b", r"\bchild abuse\b",
+)
 
 
 def _header(value: str) -> str:
@@ -84,13 +93,26 @@ def _usage_categories(row: dict[str, str]) -> frozenset[str]:
     return frozenset(_header(value) for value in values if _header(value))
 
 
-def _local_image_path(value: str | None, image_root: Path | None) -> str | None:
+def _field_value(row: dict[str, str], *names: str) -> str | None:
+    wanted = set(names)
+    return next((value.strip() for key, value in row.items() if _header(key) in wanted and value.strip()), None)
+
+
+def _safety_text(row: dict[str, str]) -> str:
+    """Source text only; this filter never infers content from an image."""
+    relevant = {"local_context", "global_context", "caption", "title", "meme_title", "ocr", "ocr_text", "cleaned_ocr", "usage"}
+    return " ".join(value for key, value in row.items() if _header(key) in relevant and value).lower()
+
+
+def _local_image_path(value: str | None, filename: str, image_root: Path | None) -> str | None:
     """Resolve only portable image references below an explicitly supplied root."""
     if not value or image_root is None:
         return None
     root = image_root.resolve()
     supplied = Path(value)
     candidates = [root / supplied] if not supplied.is_absolute() else []
+    if filename:
+        candidates.extend((root / "images" / Path(filename).name, root / Path(filename).name))
     candidates.extend((root / "images" / supplied.name, root / supplied.name))
     for candidate in candidates:
         try:
@@ -110,6 +132,10 @@ class MemeMetadata:
     sentiment: dict[str, dict[str, float]]
     usage: frozenset[str]
     image_path: str | None = None
+    template_group: str | None = None
+    safety_text: str = ""
+    local_context: str | None = None
+    global_context: str | None = None
 
     def emotion_score(self, emotion: str) -> float | None:
         values = self.emotion.get(emotion, {})
@@ -135,6 +161,11 @@ class MemeMatchMetadata:
             raise FileNotFoundError(f"unable to read MemeMatch metadata: {path}") from exc
         if not rows:
             raise ValueError("MemeMatch metadata CSV has no rows")
+        known_template_groups = {
+            _canonical_template_group(value)
+            for row in rows
+            if (value := _field_value(row, "template_group_heuristic"))
+        }
         entries: dict[str, MemeMetadata] = {}
         for row in rows:
             # Retrieval records use source_key when it exists. Prefer it here
@@ -154,10 +185,15 @@ class MemeMatchMetadata:
             emotion = {label: _source_probabilities(row, "emotion", label) for label in EMOTIONS}
             sentiment = {label: _source_probabilities(row, "sentiment", label) for label in SENTIMENTS}
             image_path = _local_image_path(
-                next((value for key, value in row.items() if _header(key) == "image_path" and value), None),
-                image_root,
+                next((value for key, value in row.items() if _header(key) in {"image_path", "kaggle_path"} and value), None),
+                next((value for key, value in row.items() if _header(key) == "filename" and value), ""), image_root,
             )
-            entries[filename] = MemeMetadata(filename, emotion, sentiment, _usage_categories(row), image_path)
+            raw_template_group = _field_value(row, "template_group_heuristic")
+            entries[filename] = MemeMetadata(
+                filename, emotion, sentiment, _usage_categories(row), image_path,
+                _metadata_template_group(raw_template_group, known_template_groups) if raw_template_group else None, _safety_text(row),
+                _field_value(row, "local_context"), _field_value(row, "global_context"),
+            )
         return cls(entries)
 
     def get(self, meme_id: str) -> MemeMetadata | None:
@@ -190,8 +226,23 @@ class RankingWeights:
 
 def filename_template_key(meme_id: str) -> str:
     """Conservative optional filename heuristic, not a definitive template identity."""
-    stem = Path(meme_id).stem.lower()
-    return re.sub(r"[_-]\d+$", "", stem)
+    return normalise_template_group(Path(meme_id).stem)
+
+
+def normalise_template_group(value: str) -> str:
+    """Canonicalize separator variants and clear numeric instance suffixes only."""
+    canonical = re.sub(r"[^a-z0-9]+", "_", value.lower()).strip("_")
+    return re.sub(r"(?:_\d+)+$", "", canonical)
+
+
+def _canonical_template_group(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "_", value.lower()).strip("_")
+
+
+def _metadata_template_group(value: str, known_groups: set[str]) -> str:
+    canonical = _canonical_template_group(value)
+    base = normalise_template_group(value)
+    return base if base in known_groups else canonical
 
 
 @dataclass(frozen=True)
@@ -202,6 +253,23 @@ class DiversityConfig:
     def __post_init__(self) -> None:
         if self.max_per_template < 1:
             raise ValueError("max_per_template must be positive")
+
+
+@dataclass(frozen=True)
+class SafetyConfig:
+    """A narrow text-metadata guard, not a complete content-safety classifier."""
+
+    enabled: bool = True
+    vulnerable_emotions: frozenset[str] = VULNERABLE_EMOTIONS
+
+    def excludes(self, text: str, emotion: str | None) -> bool:
+        if not self.enabled:
+            return False
+        if any(re.search(pattern, text, flags=re.IGNORECASE) for pattern in ALWAYS_EXCLUDED_PATTERNS):
+            return True
+        return emotion in self.vulnerable_emotions and any(
+            re.search(pattern, text, flags=re.IGNORECASE) for pattern in VULNERABLE_EXCLUDED_PATTERNS
+        )
 
 
 @dataclass(frozen=True)
@@ -251,6 +319,7 @@ class RecommendationService:
         usage_preferences: Iterable[str],
         weights: RankingWeights,
         diversity: DiversityConfig | None,
+        safety: SafetyConfig,
         min_semantic_similarity: float | None,
         limit: int,
     ) -> list[Recommendation]:
@@ -267,6 +336,8 @@ class RecommendationService:
             if semantic is not None and min_semantic_similarity is not None and semantic < min_semantic_similarity:
                 continue
             metadata = self.metadata.get(meme_id)
+            if metadata is not None and safety.excludes(metadata.safety_text, emotion):
+                continue
             if preferences and (metadata is None or not metadata.usage.intersection(preferences)):
                 continue
             emotion_score = metadata.emotion_score(emotion) if metadata and emotion else None
@@ -285,11 +356,17 @@ class RecommendationService:
                 )
             )
         ranked.sort(key=lambda item: (-item.final_score, item.meme_id))
+        return self.apply_diversity(ranked, diversity, limit)
+
+    def apply_diversity(
+        self, ranked: list[Recommendation], diversity: DiversityConfig | None, limit: int
+    ) -> list[Recommendation]:
         if diversity is None:
             return ranked[:limit]
         chosen, template_counts = [], {}
         for item in ranked:
-            key = diversity.template_key(item.meme_id)
+            metadata = self.metadata.get(item.meme_id)
+            key = metadata.template_group if metadata and metadata.template_group else diversity.template_key(item.meme_id)
             if template_counts.get(key, 0) >= diversity.max_per_template:
                 continue
             template_counts[key] = template_counts.get(key, 0) + 1
@@ -298,18 +375,28 @@ class RecommendationService:
                 break
         return chosen
 
+    def rank_candidates(
+        self, candidates: Iterable[SearchResult | str], *, emotion: str | None = None,
+        sentiment: str | None = None, usage_preferences: Iterable[str] = (),
+        weights: RankingWeights | None = None, safety: SafetyConfig | None = None,
+        min_semantic_similarity: float | None = None, limit: int = 50,
+    ) -> list[Recommendation]:
+        return self._rank(candidates, emotion=emotion, sentiment=sentiment, usage_preferences=usage_preferences, weights=weights or RankingWeights(*DEFAULT_TEXT_WEIGHTS), diversity=None, safety=safety or SafetyConfig(), min_semantic_similarity=min_semantic_similarity, limit=limit)
+
     def recommend_text(
         self, query: np.ndarray, *, emotion: str | None = None, sentiment: str | None = None,
         usage_preferences: Iterable[str] = (), weights: RankingWeights | None = None,
-        diversity: DiversityConfig | None = None, candidate_limit: int = 100,
+        diversity: DiversityConfig | None = None, safety: SafetyConfig | None = None, candidate_limit: int = 50,
         min_semantic_similarity: float | None = None, limit: int = 10,
     ) -> list[Recommendation]:
         candidates = self.retrieval.search("text", query, candidate_limit)
-        return self._rank(candidates, emotion=emotion, sentiment=sentiment, usage_preferences=usage_preferences, weights=weights or RankingWeights(semantic=0.8, emotion=0.15, sentiment=0.05), diversity=diversity, min_semantic_similarity=min_semantic_similarity, limit=limit)
+        ranked = self.rank_candidates(candidates, emotion=emotion, sentiment=sentiment, usage_preferences=usage_preferences, weights=weights, safety=safety, min_semantic_similarity=min_semantic_similarity, limit=candidate_limit)
+        return self.apply_diversity(ranked, diversity, limit)
 
     def recommend_emotion(
         self, emotion: str, *, sentiment: str | None = None, usage_preferences: Iterable[str] = (),
-        weights: RankingWeights | None = None, diversity: DiversityConfig | None = None, limit: int = 10,
+        weights: RankingWeights | None = None, diversity: DiversityConfig | None = None,
+        safety: SafetyConfig | None = None, limit: int = 10,
     ) -> list[Recommendation]:
         candidates = sorted(self.metadata.entries)
-        return self._rank(candidates, emotion=emotion, sentiment=sentiment, usage_preferences=usage_preferences, weights=weights or RankingWeights(semantic=0.0), diversity=diversity, min_semantic_similarity=None, limit=limit)
+        return self._rank(candidates, emotion=emotion, sentiment=sentiment, usage_preferences=usage_preferences, weights=weights or RankingWeights(semantic=0.0), diversity=diversity, safety=safety or SafetyConfig(), min_semantic_similarity=None, limit=limit)

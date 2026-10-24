@@ -4,6 +4,7 @@ from urllib.parse import quote
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 
+from app.hybrid_retrieval import RetrievalMode
 from app.recommendation_engine import (
     RecommendationEngine,
     RecommendationUnavailable,
@@ -65,23 +66,30 @@ def text_recommendations(
     sentiment: Sentiment = None,
     usage: Annotated[list[str] | None, Query(max_length=20)] = None,
     limit: Annotated[int, Query(ge=1, le=50)] = 10,
-    candidate_limit: Annotated[int, Query(ge=1, le=281)] = 100,
-    semantic_weight: Annotated[float, Query(ge=0)] = 0.8,
-    emotion_weight: Annotated[float, Query(ge=0)] = 0.15,
-    sentiment_weight: Annotated[float, Query(ge=0)] = 0.05,
+    candidate_limit: Annotated[int, Query(ge=1, le=1000)] = 50,
+    semantic_weight: Annotated[float, Query(ge=0)] = 0.90,
+    emotion_weight: Annotated[float, Query(ge=0)] = 0.08,
+    sentiment_weight: Annotated[float, Query(ge=0)] = 0.02,
     min_semantic_similarity: Annotated[float | None, Query(ge=-1, le=1)] = None,
-    max_per_template: Annotated[int | None, Query(ge=1)] = None,
+    max_per_template: Annotated[int | None, Query(ge=1)] = 1,
+    exclude_unsafe: bool = True,
+    retrieval_mode: RetrievalMode = "semantic",
+    bm25_candidate_limit: Annotated[int, Query(ge=1, le=1000)] = 50,
+    cross_encoder_limit: Annotated[int, Query(ge=1, le=50)] = 20,
+    mood: str | None = None,
 ) -> list[RecommendationResponse]:
     if candidate_limit < limit:
         raise HTTPException(422, "candidate_limit must be at least limit")
     weights = _weights(semantic_weight, emotion_weight, sentiment_weight)
     try:
-        rows = engine.recommend_text(text, emotion=emotion, sentiment=sentiment, usage=usage or [], weights=weights, candidate_limit=candidate_limit, min_semantic_similarity=min_semantic_similarity, diversity_max_per_template=max_per_template, limit=limit)
+        rows = engine.recommend_text(text, emotion=emotion, sentiment=sentiment, usage=usage or [], weights=weights, candidate_limit=candidate_limit, min_semantic_similarity=min_semantic_similarity, diversity_max_per_template=max_per_template, exclude_unsafe=exclude_unsafe, retrieval_mode=retrieval_mode, bm25_candidate_limit=bm25_candidate_limit, cross_encoder_limit=cross_encoder_limit, mood=mood, limit=limit)
         return [_response(item, engine) for item in rows]
     except RecommendationUnavailable as exc:
         raise HTTPException(503, str(exc)) from exc
     except RuntimeError as exc:
         raise HTTPException(503, str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
 
 
 @router.get("/recommendations/emotion", response_model=list[RecommendationResponse])
@@ -93,11 +101,12 @@ def emotion_recommendations(
     limit: Annotated[int, Query(ge=1, le=50)] = 10,
     emotion_weight: Annotated[float, Query(ge=0)] = 1.0,
     sentiment_weight: Annotated[float, Query(ge=0)] = 1.0,
-    max_per_template: Annotated[int | None, Query(ge=1)] = None,
+    max_per_template: Annotated[int | None, Query(ge=1)] = 1,
+    exclude_unsafe: bool = True,
 ) -> list[RecommendationResponse]:
     weights = _weights(0.0, emotion_weight, sentiment_weight)
     try:
-        rows = engine.recommend_emotion(emotion, sentiment=sentiment, usage=usage or [], weights=weights, diversity_max_per_template=max_per_template, limit=limit)
+        rows = engine.recommend_emotion(emotion, sentiment=sentiment, usage=usage or [], weights=weights, diversity_max_per_template=max_per_template, exclude_unsafe=exclude_unsafe, limit=limit)
         return [_response(item, engine) for item in rows]
     except RecommendationUnavailable as exc:
         raise HTTPException(503, str(exc)) from exc

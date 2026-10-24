@@ -23,3 +23,17 @@ class RecommendationOptionsResponse(BaseModel):
     emotions: list[str]
     sentiments: list[str]
     usage_categories: list[str]
+
+
+class MoodResponse(BaseModel):
+    id: str
+    label: str
+    group: str
+    description: str
+    synonyms: list[str]
+    classifier_weights: dict[str, float]
+    sentiment: str | None
+
+
+class MoodTaxonomyResponse(BaseModel):
+    moods: list[MoodResponse]

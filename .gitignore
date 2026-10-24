@@ -34,6 +34,8 @@ models/
 huggingface/
 artifacts/
 indexes/
+backend/.model-cache/
+backend/evaluation_*.json
 data/retrieval/*_indexes/
 data/retrieval/*.embeddings.npz
 data/retrieval/*.records.json

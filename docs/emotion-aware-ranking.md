@@ -15,14 +15,29 @@ configured weights are normalized to sum to one, making each final score an
 interpretable weighted average. Missing optional metadata contributes no component
 and does not discard a semantic candidate unless usage filtering was requested.
 
-The API's text defaults are semantic-first: `semantic_weight=0.8`,
-`emotion_weight=0.15`, and `sentiment_weight=0.05`. All three remain query
+The API's text defaults are semantic-first: `semantic_weight=0.90`,
+`emotion_weight=0.08`, and `sentiment_weight=0.02`. All three remain query
 parameters for experiments. Emotion-only browsing deliberately has no semantic
 component. `min_semantic_similarity` is an optional raw cosine cutoff in `[-1,1]`:
 when supplied, an empty response means no retrieved candidate met the caller's
 threshold, rather than an unrelated fallback. It has no asserted universal default
 because this small source corpus has no labeled relevance threshold. Set
 `max_per_template=1` to apply the deterministic filename heuristic described below.
+
+Text requests retrieve 50 FAISS candidates by default before reranking; callers
+can set `candidate_limit` up to the index size. If source metadata provides
+`template_group_heuristic`, diversity normalizes separator variants and terminal
+numeric instance suffixes before falling back to the conservative filename suffix
+heuristic. Emotion and sentiment annotation values
+remain source-provided probabilities, not verified suitability labels.
+
+By default, `exclude_unsafe=true` excludes records whose source text explicitly
+mentions suicide/self-harm and excludes a small set of severe trauma terms for
+vulnerable requested emotions. This is a narrow keyword guard over supplied text
+metadata, not image moderation or a complete safety classifier; it can miss
+harmful content and can over-filter quoted or contextual references. It is
+configurable for controlled evaluation, and filtering may intentionally return
+fewer than the requested number of results.
 
 Usage preferences match normalized pipe/comma/semicolon-separated source categories.
 Optional diversity caps results per a configurable filename heuristic that removes

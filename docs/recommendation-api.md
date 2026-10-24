@@ -46,7 +46,13 @@ Routes:
 The image route returns 404 until a verified local image is available. Returned
 recommendations include an image URL only under that condition.
 
-Text requests default to semantic-first weights (`0.8`, `0.15`, `0.05` for
+Text retrieval defaults to `retrieval_mode=semantic`. Opt into Phase 7A with
+`retrieval_mode=hybrid` or `retrieval_mode=hybrid_cross_encoder`; use
+`bm25_candidate_limit` and `cross_encoder_limit` to bound CPU work. The response
+shape remains unchanged. See [hybrid retrieval](hybrid-retrieval.md) for offline
+model-cache and benchmark instructions.
+
+Text requests default to semantic-first weights (`0.90`, `0.08`, `0.02` for
 semantic/emotion/sentiment). Override those values deliberately when comparing
 rankers. `min_semantic_similarity` is optional and uses raw cosine similarity in
 `[-1, 1]`; when it filters every candidate the route returns `[]`, never a
