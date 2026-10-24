@@ -1,4 +1,5 @@
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -17,6 +18,11 @@ class Settings(BaseSettings):
     api_v1_prefix: str = "/api/v1"
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
     database_url: str = "sqlite:///./dameme.db"
+    recommendation_index_dir: Path = Path("../data/retrieval/memematch_281_indexes")
+    recommendation_metadata_csv: Path = Path(
+        "../data/retrieval/memematch_281/memematch_281_metadata.csv"
+    )
+    recommendation_image_root: Path | None = None
 
     @property
     def allowed_origins(self) -> list[str]:

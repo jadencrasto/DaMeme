@@ -34,4 +34,14 @@ models/
 huggingface/
 artifacts/
 indexes/
+data/retrieval/*_indexes/
+data/retrieval/*.embeddings.npz
+data/retrieval/*.records.json
+data/retrieval/*.metadata.json
+data/retrieval/**/*.npz
+data/retrieval/**/*.csv
+data/retrieval/**/*.faiss
+data/retrieval/**/manifest.json
+data/retrieval/**/*.records.json
+data/retrieval/**/*.metadata.json
 .DS_Store

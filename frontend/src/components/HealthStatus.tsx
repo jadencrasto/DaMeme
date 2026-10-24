@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 
-type Status = "checking" | "online" | "offline";
+import { apiBaseUrl } from "../lib/api";
 
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+type Status = "checking" | "online" | "offline";
 
 export function HealthStatus() {
   const [status, setStatus] = useState<Status>("checking");
