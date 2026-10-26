@@ -39,6 +39,7 @@ class Settings(BaseSettings):
     recommendation_catalog: str = "memematch_281"
     recommendation_catalog_root: Path = Path("../data/retrieval/catalogs")
     recommendation_cross_encoder_model: str = "cross-encoder/ms-marco-MiniLM-L6-v2"
+    recommendation_request_timeout_seconds: float = 15.0
 
     def active_catalog(self) -> CatalogPaths:
         """Resolve only known catalog layouts; the legacy catalog remains default."""

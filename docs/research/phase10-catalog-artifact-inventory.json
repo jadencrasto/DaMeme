@@ -1,0 +1,103 @@
+{
+  "audit_date": "2026-10-26",
+  "scope": "read-only recovery and compatibility audit; no catalog, configuration, model, index, database, or rating artifact was modified",
+  "catalog": {
+    "id": "memematch_1000_v2",
+    "status": "technically_recoverable_but_not_authorized_for_product_use",
+    "catalog_generation": {
+      "manifest": "data/retrieval/catalogs/memematch_1000_v2/memematch_1000_v2.manifest.json",
+      "exists": true,
+      "entries": 1000,
+      "unique_source_keys": 1000,
+      "metadata_order_matches_manifest": true
+    },
+    "metadata": {
+      "path": "data/retrieval/catalogs/memematch_1000_v2/memematch_1000_metadata_v2.csv",
+      "exists": true,
+      "rows": 1000,
+      "unique_source_keys": 1000,
+      "sha256": "f4e24bce9a0d33596f4a9a2499b1b2f38fcbd16bd48714b2d6406842542710d4",
+      "template_groups": 475,
+      "usage_categories": 28
+    },
+    "images": {
+      "path": "data/retrieval/catalogs/memematch_1000_v2/images",
+      "exists": true,
+      "file_count": 1000,
+      "readable_count": 1000,
+      "formats": {"jpg": 956, "png": 44},
+      "exact_duplicate_groups": 0,
+      "exact_duplicate_files": 0,
+      "near_duplicate_candidates": {
+        "method": "imagehash.phash with Hamming distance <= 6",
+        "pair_count": 2768,
+        "interpretation": "review candidates only; crops, text variants, and template variants must not be auto-merged"
+      },
+      "dimension_range": {"min": [236, 150], "max": [2118, 2352], "median": [534, 499]},
+      "note": "The directory is ignored by Git, so a normal tracked-file listing does not reveal it."
+    },
+    "a0_retrieval": {
+      "index_directory": "data/retrieval/catalogs/memematch_1000_v2/indexes",
+      "format_version": 1,
+      "files": {"text.faiss": true, "image.faiss": true, "fused.faiss": true, "manifest.json": true},
+      "counts": {"text": 1000, "image": 1000, "fused": 1000},
+      "dimensions": {"text": 384, "image": 768, "fused": 1152},
+      "models": {
+        "text": "sentence-transformers/all-MiniLM-L6-v2",
+        "image": "Salesforce/blip-image-captioning-base"
+      },
+      "export_records": {
+        "path": "data/retrieval/catalogs/memematch_1000_v2/exports/memematch_1000_v2.records.json",
+        "exists": true,
+        "completed_records": 1000,
+        "contiguous_embedding_indexes": true,
+        "aligns_with_index_manifest": true,
+        "aligns_with_acquisition_manifest": true,
+        "sha256": "eb9d928995ae22654edac170f4169244da5ad22112c72f0cab83886e5c27ba89"
+      },
+      "export_metadata": {
+        "path": "data/retrieval/catalogs/memematch_1000_v2/exports/memematch_1000_v2.metadata.json",
+        "exists": true,
+        "text_embedding_dimension": 384,
+        "image_embedding_dimension": 768,
+        "sha256": "e702f6e21be5370f3c56b2673a8366e3ca6f860903b47a8729be2c5c09eecbd6"
+      },
+      "engine_validation": "pass: 1000 records and 1000 image paths resolve when the catalog root is used as its image root"
+    },
+    "experimental_artifacts": {
+      "openclip_m1": {
+        "directory": "backend/benchmarks/phase7r_v1_openclip_image_index",
+        "files": {"embeddings.npz": true, "openclip.faiss": true, "source_keys.json": true, "manifest.json": true},
+        "count": 1000,
+        "dimension": 512,
+        "model": "ViT-B-32-quickgelu / openai",
+        "validation": "pass",
+        "product_compatibility": "incompatible with A0 index dimensions and intentionally development-only"
+      },
+      "local_global_minilm": {
+        "directory": "backend/benchmarks/phase7r_v1_local_global_indexes",
+        "representations": ["local", "global"],
+        "count": 1000,
+        "dimension": 384,
+        "model": "sentence-transformers/all-MiniLM-L6-v2",
+        "validation": "pass: 24/24 checks; local has four unavailable zero rows",
+        "product_compatibility": "research ablation artifacts, not the A0 serving manifest"
+      }
+    }
+  },
+  "product_baseline_comparison": {
+    "memematch_281_images": 281,
+    "overlap_by_filename": 280,
+    "new_images_in_1000": 720,
+    "usage_category_count": {"memematch_281": 28, "memematch_1000_v2": 28}
+  },
+  "provenance_and_permissions": {
+    "catalog_license_status": "unknown",
+    "dataset_source_record_for_memematch_1000_v2": false,
+    "permission_review_for_memematch_1000_v2": false,
+    "application_use_authorized": false,
+    "redistribution_or_public_hosting_authorized": false,
+    "basis": "Existing documentation says local availability and prior research use do not establish product, redistribution, or public-hosting rights."
+  },
+  "recommended_phase10b_gate": "Do not switch or expose this catalog until an authorized source and permission review are recorded and an isolated 1K readiness smoke test passes."
+}

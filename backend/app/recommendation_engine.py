@@ -15,7 +15,7 @@ from app.hybrid_retrieval import (
     cross_encoder_with_fallback,
     reciprocal_rank_fusion,
 )
-from app.moods import mood_query, primary_classifier_emotion, resolve_mood
+from app.moods import mood_only_query, mood_query, primary_classifier_emotion, resolve_mood
 from app.recommendations import (
     MemeMatchMetadata,
     RankingWeights,
@@ -137,11 +137,16 @@ class RecommendationEngine:
         weights: RankingWeights, candidate_limit: int, min_semantic_similarity: float | None,
         diversity_max_per_template: int | None, exclude_unsafe: bool, limit: int,
         retrieval_mode: RetrievalMode = "semantic", bm25_candidate_limit: int = 50,
-        cross_encoder_limit: int = 20, mood: str | None = None,
+        cross_encoder_limit: int = 20, mood: str | None = None, exclude_meme_ids: set[str] | None = None,
     ) -> list[Recommendation]:
         service = self._load()
         selected_mood = resolve_mood(mood)
-        effective_query = mood_query(text, selected_mood)
+        if text.strip():
+            effective_query = mood_query(text, selected_mood)
+        elif selected_mood is not None:
+            effective_query = mood_only_query(selected_mood)
+        else:
+            raise ValueError("Provide a situation or select a mood")
         query = TextQueryEmbedder(service.retrieval, self.query_device).embed(effective_query)
         from app.recommendations import DiversityConfig
         diversity = DiversityConfig(diversity_max_per_template) if diversity_max_per_template else None
@@ -155,6 +160,8 @@ class RecommendationEngine:
         safety = SafetyConfig(enabled=exclude_unsafe)
         ranking_emotion = emotion or primary_classifier_emotion(selected_mood)
         ranked = service.rank_candidates(retrieval.candidates, emotion=ranking_emotion, sentiment=sentiment, usage_preferences=usage, weights=weights, safety=safety, min_semantic_similarity=min_semantic_similarity, limit=max(candidate_limit, bm25_candidate_limit))
+        if exclude_meme_ids:
+            ranked = [item for item in ranked if item.meme_id not in exclude_meme_ids]
         self.last_safe_candidate_count = len(ranked)
         if retrieval_mode == "hybrid_cross_encoder":
             if self._cross_encoder is None:
@@ -194,6 +201,11 @@ class RecommendationEngine:
             return None
         path = Path(entry.image_path)
         return path if path.is_file() else None
+
+    def available_image_count(self) -> int:
+        """Count image routes that can resolve without exposing filesystem paths."""
+        service = self._load()
+        return sum(self.image_path(meme_id) is not None for meme_id in service.metadata.entries)
 
 
 @lru_cache

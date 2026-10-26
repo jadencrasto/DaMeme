@@ -12,6 +12,7 @@ from app.api.v1.recommendations import (
     text_recommendations,
 )
 from app.main import create_app
+from app.moods import MOODS
 from app.recommendation_engine import RecommendationUnavailable
 from app.recommendations import Recommendation
 
@@ -81,6 +82,23 @@ def test_text_api_only_forwards_sentiment_when_the_caller_supplies_it() -> None:
     engine = FakeEngine()
     text_recommendations(engine, "I passed", sentiment="positive")
     assert engine.text_calls[0][1]["sentiment"] == "positive"
+
+
+@pytest.mark.parametrize("mood", [item.id for item in MOODS])
+def test_mood_only_requests_use_the_a0_text_route_for_every_supported_mood(mood: str) -> None:
+    engine = FakeEngine()
+    response = text_recommendations(engine, None, mood=mood, exclude_meme_id=["seen.jpg"])
+    assert response[0].meme_id == "meme.jpg"
+    assert engine.text_calls[0][0] == ""
+    assert engine.text_calls[0][1]["mood"] == mood
+    assert engine.text_calls[0][1]["exclude_meme_ids"] == {"seen.jpg"}
+
+
+def test_text_route_rejects_a_blank_situation_without_a_mood() -> None:
+    with pytest.raises(HTTPException) as invalid:
+        text_recommendations(FakeEngine(), "   ")
+    assert invalid.value.status_code == 422
+    assert invalid.value.detail == "Provide a situation or select a mood"
 
 
 def test_text_api_forwards_hybrid_controls_without_changing_response_schema() -> None:

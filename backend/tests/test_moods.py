@@ -1,7 +1,7 @@
 import pytest
 
 from app.api.v1.moods import emotions
-from app.moods import MOODS, mood_query, primary_classifier_emotion, resolve_mood
+from app.moods import MOODS, mood_only_query, mood_query, primary_classifier_emotion, resolve_mood
 
 
 def test_taxonomy_has_exactly_32_unique_ids_and_four_groups() -> None:
@@ -26,3 +26,10 @@ def test_mood_query_is_deterministic_and_preserves_the_situation() -> None:
     assert mood_query(original, None) == original
     assert primary_classifier_emotion(resolve_mood("anxiety")) == "fear"
     assert primary_classifier_emotion(resolve_mood("stress")) == "fear"
+
+
+def test_all_moods_have_a_deterministic_mood_only_representation() -> None:
+    assert len({mood_only_query(mood) for mood in MOODS}) == len(MOODS)
+    for mood in MOODS:
+        assert mood_only_query(mood) == mood_only_query(mood)
+        assert mood.description in mood_only_query(mood)

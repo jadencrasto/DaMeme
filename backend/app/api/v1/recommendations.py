@@ -4,7 +4,9 @@ from urllib.parse import quote
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 
+from app.core.config import get_settings
 from app.hybrid_retrieval import RetrievalMode
+from app.readiness import runtime_readiness
 from app.recommendation_engine import (
     RecommendationEngine,
     RecommendationUnavailable,
@@ -47,7 +49,7 @@ def _response(item: Recommendation, engine: RecommendationEngine) -> Recommendat
 
 @router.get("/recommendations/status", response_model=RecommendationStatusResponse)
 def status(engine: Engine) -> RecommendationStatusResponse:
-    return RecommendationStatusResponse(**engine.status())
+    return RecommendationStatusResponse(**runtime_readiness(get_settings(), engine))
 
 
 @router.get("/recommendations/options", response_model=RecommendationOptionsResponse)
@@ -61,7 +63,7 @@ def options(engine: Engine) -> RecommendationOptionsResponse:
 @router.get("/recommendations/text", response_model=list[RecommendationResponse])
 def text_recommendations(
     engine: Engine,
-    text: Annotated[str, Query(min_length=1, max_length=1000)],
+    text: Annotated[str | None, Query(max_length=1000)] = None,
     emotion: Emotion = None,
     sentiment: Sentiment = None,
     usage: Annotated[list[str] | None, Query(max_length=20)] = None,
@@ -77,12 +79,15 @@ def text_recommendations(
     bm25_candidate_limit: Annotated[int, Query(ge=1, le=1000)] = 50,
     cross_encoder_limit: Annotated[int, Query(ge=1, le=50)] = 20,
     mood: str | None = None,
+    exclude_meme_id: Annotated[list[str] | None, Query(max_length=281)] = None,
 ) -> list[RecommendationResponse]:
+    if not (text and text.strip()) and not (mood and mood.strip()):
+        raise HTTPException(422, "Provide a situation or select a mood")
     if candidate_limit < limit:
         raise HTTPException(422, "candidate_limit must be at least limit")
     weights = _weights(semantic_weight, emotion_weight, sentiment_weight)
     try:
-        rows = engine.recommend_text(text, emotion=emotion, sentiment=sentiment, usage=usage or [], weights=weights, candidate_limit=candidate_limit, min_semantic_similarity=min_semantic_similarity, diversity_max_per_template=max_per_template, exclude_unsafe=exclude_unsafe, retrieval_mode=retrieval_mode, bm25_candidate_limit=bm25_candidate_limit, cross_encoder_limit=cross_encoder_limit, mood=mood, limit=limit)
+        rows = engine.recommend_text(text or "", emotion=emotion, sentiment=sentiment, usage=usage or [], weights=weights, candidate_limit=candidate_limit, min_semantic_similarity=min_semantic_similarity, diversity_max_per_template=max_per_template, exclude_unsafe=exclude_unsafe, retrieval_mode=retrieval_mode, bm25_candidate_limit=bm25_candidate_limit, cross_encoder_limit=cross_encoder_limit, mood=mood, exclude_meme_ids=set(exclude_meme_id or []), limit=limit)
         return [_response(item, engine) for item in rows]
     except RecommendationUnavailable as exc:
         raise HTTPException(503, str(exc)) from exc

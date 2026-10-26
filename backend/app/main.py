@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 from fastapi import FastAPI, Request
@@ -18,10 +19,22 @@ def create_app() -> FastAPI:
         CORSMiddleware,
         allow_origins=settings.allowed_origins,
         allow_credentials=False,
-        allow_methods=["GET"],
+        allow_methods=["GET", "POST"],
         allow_headers=["*"],
     )
     app.include_router(api_router, prefix=settings.api_v1_prefix)
+
+    @app.middleware("http")
+    async def recommendation_timeout(request: Request, call_next):
+        if request.url.path in {
+            f"{settings.api_v1_prefix}/recommendations/text",
+            f"{settings.api_v1_prefix}/recommendations/emotion",
+        }:
+            try:
+                return await asyncio.wait_for(call_next(request), timeout=settings.recommendation_request_timeout_seconds)
+            except TimeoutError:
+                return JSONResponse(status_code=504, content={"detail": "Recommendation request timed out. Please try again."})
+        return await call_next(request)
 
     @app.exception_handler(Exception)
     async def unhandled_exception_handler(_: Request, exc: Exception) -> JSONResponse:

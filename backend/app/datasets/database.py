@@ -73,6 +73,51 @@ MIGRATIONS = [
     );
     CREATE INDEX IF NOT EXISTS idx_emotion_predictions_meme ON emotion_predictions(meme_id, model_id);
     """,
+    """
+    CREATE TABLE IF NOT EXISTS source_permission_reviews (
+      id INTEGER PRIMARY KEY, dataset_source_id INTEGER NOT NULL REFERENCES dataset_sources(id),
+      acquisition_method TEXT NOT NULL, terms_reference TEXT NOT NULL, review_record TEXT NOT NULL,
+      allowed_intended_use TEXT NOT NULL, restrictions TEXT NOT NULL, attribution TEXT NOT NULL,
+      review_status TEXT NOT NULL CHECK(review_status IN ('approved', 'rejected', 'unknown')),
+      reviewed_at TEXT NOT NULL, evidence_reference TEXT NOT NULL,
+      UNIQUE(dataset_source_id)
+    );
+    CREATE TABLE IF NOT EXISTS catalog_generations (
+      generation_id TEXT PRIMARY KEY, parent_generation_id TEXT REFERENCES catalog_generations(generation_id),
+      parent_manifest_sha256 TEXT, catalog_identity_sha256 TEXT UNIQUE, status TEXT NOT NULL
+        CHECK(status IN ('draft', 'finalized', 'retired')),
+      artifact_directory TEXT, manifest_sha256 TEXT, created_at TEXT NOT NULL, finalized_at TEXT
+    );
+    CREATE TABLE IF NOT EXISTS catalog_generation_members (
+      generation_id TEXT NOT NULL REFERENCES catalog_generations(generation_id),
+      source_key TEXT NOT NULL, meme_id INTEGER NOT NULL REFERENCES memes(id), ordinal INTEGER NOT NULL,
+      PRIMARY KEY(generation_id, source_key), UNIQUE(generation_id, ordinal)
+    );
+    CREATE TABLE IF NOT EXISTS catalog_generation_features (
+      generation_id TEXT NOT NULL REFERENCES catalog_generations(generation_id), source_key TEXT NOT NULL,
+      feature_kind TEXT NOT NULL CHECK(feature_kind IN ('ocr_caption', 'minilm_text', 'openclip_image', 'faiss')),
+      image_sha256 TEXT NOT NULL, feature_version TEXT NOT NULL, model_provenance_sha256 TEXT NOT NULL,
+      artifact_reference TEXT NOT NULL, status TEXT NOT NULL CHECK(status IN ('completed', 'failed')),
+      recorded_at TEXT NOT NULL,
+      PRIMARY KEY(generation_id, source_key, feature_kind, feature_version, model_provenance_sha256)
+    );
+    CREATE INDEX IF NOT EXISTS idx_generation_features_cache ON catalog_generation_features(
+      image_sha256, feature_kind, feature_version, model_provenance_sha256, status
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS product_feedback (
+      id INTEGER PRIMARY KEY,
+      request_id TEXT NOT NULL,
+      meme_id TEXT NOT NULL,
+      selected_mood TEXT,
+      retrieval_variant TEXT NOT NULL CHECK(retrieval_variant = 'a0'),
+      feedback_value TEXT NOT NULL CHECK(feedback_value IN ('useful', 'not_relevant')),
+      created_at TEXT NOT NULL,
+      UNIQUE(request_id, meme_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_product_feedback_created_at ON product_feedback(created_at);
+    """,
 ]
 
 

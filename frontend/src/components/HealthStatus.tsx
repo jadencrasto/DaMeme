@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { apiBaseUrl } from "../lib/api";
+import { FeedbackDashboard } from "./FeedbackDashboard";
 
 type Status = "checking" | "online" | "offline";
 
@@ -19,5 +20,5 @@ export function HealthStatus() {
   }, []);
 
   const label = status === "checking" ? "Checking API" : status === "online" ? "API online" : "API offline";
-  return <p className={`health health--${status}`} aria-live="polite">{label}</p>;
+  return <div className="health-tools"><p className={`health health--${status}`} aria-live="polite">{label}</p><details className="analytics-toggle"><summary>Local feedback</summary><FeedbackDashboard /></details></div>;
 }

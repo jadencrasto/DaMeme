@@ -75,5 +75,14 @@ def mood_query(query: str, mood: Mood | None) -> str:
     return f"Situation: {query}\nSelected mood context: {mood.description}."
 
 
+def mood_only_query(mood: Mood) -> str:
+    """Build the fixed A0 query used when a user intentionally provides only a mood.
+
+    This is taxonomy metadata, not an inferred situation or an emotion prediction.
+    """
+    related_terms = ", ".join((mood.id.replace("_", " "), *mood.synonyms))
+    return f"Selected mood: {mood.label}.\nMood description: {mood.description}.\nRelated terms: {related_terms}."
+
+
 def primary_classifier_emotion(mood: Mood | None) -> str | None:
     return max(mood.classifier_weights, key=mood.classifier_weights.get) if mood and mood.classifier_weights else None

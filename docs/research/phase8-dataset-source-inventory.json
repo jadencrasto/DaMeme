@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "audit_date": "2026-10-26",
+  "scope": "read-only; no downloads, extraction, ingestion, catalog changes, or held-out-query access",
+  "local_inventory": [
+    {
+      "id": "memematch_1000_v2",
+      "role": "active immutable retrieval catalog",
+      "images": 1000,
+      "bytes": 88722626,
+      "license_status": "unknown",
+      "additional_usable_images": 0,
+      "notes": "Active catalog; its images must not be modified."
+    },
+    {
+      "id": "memematch_281_legacy",
+      "role": "legacy retrieval subset",
+      "images": 281,
+      "unique_sha256": 280,
+      "exact_sha256_overlap_with_active": 280,
+      "additional_usable_images": 0,
+      "notes": "Not an expansion source: every unique legacy byte stream already occurs in the active catalog."
+    },
+    {
+      "id": "mood_phase32_local",
+      "role": "private local MOOD/ALFRED research material",
+      "images": 200,
+      "bytes": 5980276,
+      "unique_sha256": 200,
+      "exact_sha256_overlap_with_active": 0,
+      "license_status": "unknown",
+      "additional_usable_images": 0,
+      "conditionally_reviewable_images": 200,
+      "notes": "Existing documentation records private local use only; no redistribution or commercial-use permission was verified."
+    }
+  ],
+  "archives": [
+    {
+      "id": "tac24_meme_emotion_zip",
+      "workspace_present": false,
+      "recorded_external_local_artifact": true,
+      "recorded_size_bytes": 1281041204,
+      "recorded_contents": "10,005-row final.csv plus nested image ZIPs; not inspected again in this audit",
+      "license_status": "unknown"
+    }
+  ],
+  "source_candidates": [
+    {
+      "name": "MemeMatch v1.0 official Kaggle distribution",
+      "availability": "Official repository links a Kaggle DOI; the project previously recorded version 1 at 32,002,485,265 bytes.",
+      "size": "Nearly one million image-with-text memes is claimed in the project documentation; package layout and retained-image count are unverified.",
+      "coverage": "Strong candidate for modern Reddit/ImgFlip coverage (2018-2023) with local/global context and other annotations.",
+      "license_status": "unknown",
+      "restrictions": "Do not download, redistribute, scrape referenced URLs, or use commercially until authenticated dataset-card/terms review and attribution requirements are recorded.",
+      "recommendation": "Preferred conditional source for a controlled research-only batch after terms, package manifest, and image rights are verified."
+    },
+    {
+      "name": "MOOD / ALFRED official archive",
+      "availability": "Official repository links a Google Drive full dataset; 200 local images and documentation of a 10,005-row annotation file exist.",
+      "size": "10,005 annotated filenames recorded from the locally supplied archive; neither full image count nor package terms were revalidated here.",
+      "coverage": "Emotion-labelled memes with OCR text; suited to affect-coverage analysis more than broad modern-template expansion.",
+      "license_status": "unknown",
+      "restrictions": "Private local research provenance only. No verified redistribution, commercial-use, or split-use permission.",
+      "recommendation": "Do not make the retrieval expansion source unless maintainers provide suitable written terms."
+    },
+    {
+      "name": "User-owned or expressly permissioned favorites",
+      "availability": "Future opt-in local submissions.",
+      "size": "User-controlled; no current count.",
+      "coverage": "Useful for recency and preference gaps but biased and usually low-volume.",
+      "license_status": "verified only per submitted item with affirmative ownership/permission record",
+      "restrictions": "Require contributor declaration, original URL/creator attribution where applicable, consent scope, and takedown path.",
+      "recommendation": "Use as a separately labelled personal collection, never silently merged into benchmark or source datasets."
+    }
+  ]
+}

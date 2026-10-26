@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "audit_date": "2026-10-26",
+  "machine": {"cpu": "Ryzen 7 6800HS", "memory_gib": 16, "gpu": "RTX 3050 Laptop GPU", "gpu_vram_gib": 4, "os": "Windows 11"},
+  "measurements": {
+    "active_images": {"count": 1000, "bytes": 88722626, "bytes_per_image": 88722.626},
+    "openclip": {"dimension": 512, "dtype": "float32", "encoding_elapsed_seconds": 11.947181100025773, "batch_size": 8, "peak_gpu_bytes": 643718144, "raw_vector_bytes_per_image": 2048, "faiss_index_bytes": 2048045, "npz_bytes": 1905833},
+    "minilm": {"dimension": 384, "dtype": "float32", "raw_vector_bytes_per_image": 1536, "legacy_exact_faiss_bytes_per_image": 1536.16},
+    "metadata": {"active_csv_bytes": 1096689, "csv_bytes_per_image": 1096.689},
+    "sqlite": {"phase32_bytes": 6025216, "phase32_memes": 200, "warning": "Includes processing tables/features; not a clean catalog-only baseline."}
+  },
+  "assumptions": {
+    "original_image_bytes_per_item": 88722.626,
+    "exact_faiss": "IndexFlatIP float32, excluding process allocator overhead",
+    "openclip_time": "Linear extrapolation from the measured 1,000-image CUDA job; excludes startup, I/O stalls, retries, and validation.",
+    "ocr_time": "Planning envelope only: 3-10 images/s CPU-equivalent; must be measured on an authorized pilot.",
+    "blip_time": "Planning envelope only: 1-3 images/s on the 4-GB GPU; must be measured on an authorized pilot."
+  },
+  "targets": [
+    {"count": 5000, "original_images_bytes": 443613130, "minilm_raw_bytes": 7680000, "openclip_raw_bytes": 10240000, "openclip_faiss_bytes": 10240225, "metadata_csv_bytes": 5483445, "sqlite_catalog_planning_bytes_range": [10000000,30000000], "openclip_seconds_extrapolated": 59.73590550012887, "ocr_seconds_planning_range": [500,1667], "blip_seconds_planning_range": [1667,5000]},
+    {"count": 50000, "original_images_bytes": 4436131300, "minilm_raw_bytes": 76800000, "openclip_raw_bytes": 102400000, "openclip_faiss_bytes": 102402250, "metadata_csv_bytes": 54834450, "sqlite_catalog_planning_bytes_range": [100000000,300000000], "openclip_seconds_extrapolated": 597.3590550012887, "ocr_seconds_planning_range": [5000,16667], "blip_seconds_planning_range": [16667,50000]},
+    {"count": 100000, "original_images_bytes": 8872262600, "minilm_raw_bytes": 153600000, "openclip_raw_bytes": 204800000, "openclip_faiss_bytes": 204804500, "metadata_csv_bytes": 109668900, "sqlite_catalog_planning_bytes_range": [200000000,600000000], "openclip_seconds_extrapolated": 1194.7181100025773, "ocr_seconds_planning_range": [10000,33334], "blip_seconds_planning_range": [33334,100000]}
+  ]
+}

@@ -23,4 +23,19 @@ describe("RecommendationCard", () => {
     fireEvent.error(screen.getByRole("img"));
     expect(screen.getByLabelText("Meme image unavailable")).toBeInTheDocument();
   });
+
+  it("opens an accessible preview and closes it with Escape", () => {
+    render(<RecommendationCard recommendation={recommendation} />);
+    fireEvent.click(screen.getByRole("button", { name: "Inspect image" }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("shows download and share actions without opening the preview", () => {
+    render(<RecommendationCard recommendation={recommendation} />);
+    expect(screen.getByRole("button", { name: "Download image" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Share" })).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
 });

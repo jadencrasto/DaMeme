@@ -88,8 +88,8 @@ class PretrainedFeatureExtractor:
         if not contents:
             return np.empty((0, 0), dtype=np.float32)
         if self._text_model is None:
-            self._text_tokenizer = AutoTokenizer.from_pretrained(self.text_model_id)
-            self._text_model = AutoModel.from_pretrained(self.text_model_id).to(self.device).eval()
+            self._text_tokenizer = AutoTokenizer.from_pretrained(self.text_model_id, local_files_only=True)
+            self._text_model = AutoModel.from_pretrained(self.text_model_id, local_files_only=True).to(self.device).eval()
         encoded = self._text_tokenizer(
             [content or "" for content in contents],
             return_tensors="pt",
@@ -114,9 +114,9 @@ class PretrainedFeatureExtractor:
         if not paths:
             return np.empty((0, 0), dtype=np.float32)
         if self._blip is None:
-            self._processor = BlipProcessor.from_pretrained(self.image_model_id)
+            self._processor = BlipProcessor.from_pretrained(self.image_model_id, local_files_only=True)
             self._blip = (
-                BlipForConditionalGeneration.from_pretrained(self.image_model_id)
+                BlipForConditionalGeneration.from_pretrained(self.image_model_id, local_files_only=True)
                 .to(self.device)
                 .eval()
             )

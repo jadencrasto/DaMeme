@@ -19,34 +19,49 @@ function mockFetch(recommendations = [recommendation]) {
   }));
 }
 
-describe("recommendation interface", () => {
+describe("cinematic recommendation interface", () => {
   afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
   it("renders text recommendations and an unavailable-image placeholder", async () => {
     mockFetch(); render(<App />);
-    await screen.findByRole("button", { name: "Joy" });
-    fireEvent.change(screen.getByLabelText("Describe your mood or situation"), { target: { value: "I passed my exam" } });
-    fireEvent.click(screen.getByRole("button", { name: "Recommend memes" }));
+    await screen.findAllByRole("button", { name: "Anxiety" });
+    fireEvent.change(screen.getByLabelText("What happened?"), { target: { value: "I passed my exam" } });
+    fireEvent.click(screen.getByRole("button", { name: "Find my meme" }));
     expect(await screen.findByText("exam success")).toBeInTheDocument();
     expect(screen.getByLabelText("Meme image unavailable")).toBeInTheDocument();
   });
 
-  it("supports emotion-only mode and shows backend errors", async () => {
+  it("supports mood-only mode and shows backend errors", async () => {
     mockFetch(); render(<App />);
-    await screen.findByRole("tab", { name: "Browse by emotion" });
-    fireEvent.click(screen.getByRole("tab", { name: "Browse by emotion" }));
-    fireEvent.click(screen.getByRole("button", { name: "Joy" }));
-    fireEvent.click(screen.getByRole("button", { name: "Recommend memes" }));
+    await screen.findByRole("tab", { name: "Just a mood" });
+    fireEvent.click(screen.getByRole("tab", { name: "Just a mood" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Anxiety" })[0]);
+    fireEvent.click(screen.getByRole("button", { name: "Find my meme" }));
     await waitFor(() => expect(screen.getByText("exam success")).toBeInTheDocument());
   });
 
   it("fetches the mood taxonomy and sends a selected stable mood ID", async () => {
     mockFetch(); render(<App />);
-    await screen.findByRole("button", { name: "Anxiety" });
-    fireEvent.click(screen.getByRole("button", { name: "Anxiety" }));
-    fireEvent.change(screen.getByLabelText("Describe your mood or situation"), { target: { value: "presentation" } });
-    fireEvent.click(screen.getByRole("button", { name: "Recommend memes" }));
-    await waitFor(() => expect(fetch).toHaveBeenCalledWith(expect.stringContaining("mood=anxiety")));
+    await screen.findAllByRole("button", { name: "Anxiety" });
+    fireEvent.click(screen.getAllByRole("button", { name: "Anxiety" })[0]);
+    fireEvent.change(screen.getByLabelText("What happened?"), { target: { value: "presentation" } });
+    fireEvent.click(screen.getByRole("button", { name: "Find my meme" }));
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith(expect.stringContaining("mood=anxiety"), expect.any(Object)));
+  });
+
+  it("uses the selected bounded recommendation maximum and reports a smaller returned set", async () => {
+    mockFetch(); render(<App />);
+    await screen.findByLabelText("What happened?");
+    expect(screen.getByLabelText("Show up to")).toHaveValue("10");
+    fireEvent.change(screen.getByLabelText("Show up to"), { target: { value: "20" } });
+    fireEvent.change(screen.getByLabelText("What happened?"), { target: { value: "an impossible Tuesday" } });
+    fireEvent.click(screen.getByRole("button", { name: "Find my meme" }));
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith(expect.stringContaining("limit=20"), expect.any(Object)));
+    expect(await screen.findByText("1 returned · up to 20")).toBeInTheDocument();
+    expect(screen.getByText("We found fewer safe, varied matches than your selected maximum.")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Show up to"), { target: { value: "50" } });
+    fireEvent.click(screen.getByRole("button", { name: "Find my meme" }));
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith(expect.stringContaining("limit=50"), expect.any(Object)));
   });
 
   it("shows loading and backend-unavailable states", async () => {
@@ -58,10 +73,10 @@ describe("recommendation interface", () => {
       return new Promise<Response>((resolve) => { resolveRecommendation = resolve; });
     }));
     render(<App />);
-    await screen.findByLabelText("Describe your mood or situation");
-    fireEvent.change(screen.getByLabelText("Describe your mood or situation"), { target: { value: "too much work" } });
-    fireEvent.click(screen.getByRole("button", { name: "Recommend memes" }));
-    expect(screen.getByText("Searching semantic and mood signals…")).toBeInTheDocument();
+    await screen.findByLabelText("What happened?");
+    fireEvent.change(screen.getByLabelText("What happened?"), { target: { value: "too much work" } });
+    fireEvent.click(screen.getByRole("button", { name: "Find my meme" }));
+    expect(screen.getByText("Curating a fresh set of safe, varied picks…")).toBeInTheDocument();
     resolveRecommendation?.(new Response(JSON.stringify({ detail: "Recommendation assets are unavailable" }), { status: 503 }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Recommendation assets are unavailable");
   });

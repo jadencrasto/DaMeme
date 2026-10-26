@@ -3,6 +3,7 @@ import json
 import sys
 from pathlib import Path
 
+from app.datasets.catalog_generations import CatalogPlanner, PermissionReview
 from app.datasets.database import connect, migrate
 from app.datasets.ingestion import DatasetIngester, IngestionOptions, SourceDetails
 from app.datasets.validation import ImageValidationError, validate_image
@@ -19,6 +20,16 @@ def _load_metadata(path: str | None) -> dict[str, dict[str, object]]:
     if not isinstance(content, dict):
         raise ValueError("metadata JSON must map source IDs to annotation objects")
     return content
+
+
+def _load_permission_review(path: str) -> PermissionReview:
+    content = json.loads(Path(path).read_text(encoding="utf-8"))
+    if not isinstance(content, dict):
+        raise ValueError("permission review JSON must be an object")
+    try:
+        return PermissionReview(**content)
+    except TypeError as exc:
+        raise ValueError("permission review JSON has invalid fields") from exc
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -56,6 +67,14 @@ def build_parser() -> argparse.ArgumentParser:
     ingest.add_argument("--near-distance", type=int, default=6)
     ingest.add_argument("--max-bytes", type=int, default=20 * 1024 * 1024)
     ingest.add_argument("--max-pixels", type=int, default=40_000_000)
+    dry_run = commands.add_parser(
+        "catalog-dry-run", help="read-only validation and duplicate plan; writes no database or catalog"
+    )
+    dry_run.add_argument("input", type=Path)
+    dry_run.add_argument("--permission-review", required=True)
+    dry_run.add_argument("--near-distance", type=int, default=6)
+    dry_run.add_argument("--max-bytes", type=int, default=20 * 1024 * 1024)
+    dry_run.add_argument("--max-pixels", type=int, default=40_000_000)
     stats = commands.add_parser("stats", help="show aggregate statistics")
     stats.add_argument("--json", action="store_true")
     manifest = commands.add_parser("export-manifest", help="write a JSON provenance summary")
@@ -84,6 +103,26 @@ def main(argv: list[str] | None = None) -> int:
                 invalid.append({"path": str(path), "reason": str(exc)})
         print(json.dumps({"valid": valid, "invalid": invalid}, indent=2))
         return 1 if invalid else 0
+    if args.command == "catalog-dry-run":
+        result = CatalogPlanner().dry_run(
+            args.input,
+            _load_permission_review(args.permission_review),
+            near_duplicate_distance=args.near_distance,
+            max_bytes=args.max_bytes,
+            max_pixels=args.max_pixels,
+        )
+        print(
+            json.dumps(
+                {
+                    "accepted": [item.__dict__ for item in result.accepted],
+                    "rejected": [item.__dict__ for item in result.rejected],
+                    "exact_duplicates": result.exact_duplicates,
+                    "near_duplicates": result.near_duplicates,
+                },
+                indent=2,
+            )
+        )
+        return 1 if result.rejected else 0
     ingester = DatasetIngester(args.database)
     try:
         if args.command == "import":
