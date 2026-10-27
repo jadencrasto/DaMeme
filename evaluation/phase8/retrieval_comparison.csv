@@ -1,0 +1,9 @@
+metric,semantic_only,emotion_aware,absolute_change,relative_change_percent,evidence_status
+Precision@5,0.395804,0.537063,0.141259,35.689,historical_unverified
+Precision@10,0.362238,0.508392,0.146154,40.348,historical_unverified
+Recall@5,0.009926,0.013402,0.003476,35.019,historical_unverified
+Recall@10,0.018106,0.025412,0.007306,40.351,historical_unverified
+HitRate@5,0.811189,0.860140,0.048951,6.034,historical_unverified
+HitRate@10,0.909091,0.916084,0.006993,0.769,historical_unverified
+nDCG@5,0.415579,0.543209,0.127630,30.711,historical_unverified
+nDCG@10,0.385232,0.520795,0.135563,35.190,historical_unverified

@@ -1,0 +1,5 @@
+model,micro_f1,macro_f1,evidence_status,dataset_split_notes
+TEXT,0.4734,0.4734,historical_unverified,"Metric supplied in Phase 8 request; no local held-out report located."
+VISION,0.4756,0.4747,historical_unverified,"Metric supplied in Phase 8 request; no local held-out report located."
+CONCAT,0.5356,0.5307,historical_unverified,"Metric supplied in Phase 8 request; no local held-out report located."
+GATED,0.58125,0.60640,historical_unverified,"Metric supplied in Phase 8 request; no local held-out report located."

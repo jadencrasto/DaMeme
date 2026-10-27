@@ -1,0 +1,43 @@
+{
+  "status": "passed",
+  "executed_on": "2026-10-28",
+  "base_url": "http://127.0.0.1:8000",
+  "scope": "Live API integration checks only; these results do not measure classification accuracy or recommendation relevance.",
+  "summary": {
+    "passed": 86,
+    "failed": 0,
+    "skipped": 0,
+    "breakdown": {"readiness": 1, "initial_recommendation_responses": 12, "image_responses": 60, "repeat_order_checks": 12, "invalid_emotion_validation": 1}
+  },
+  "readiness": {"status": 200, "passed": true, "response": {"ready": true, "bundle_count": 5469, "text_model_ready": true, "media_available": true, "image_reference_count": 5469}},
+  "text_recommendations": {
+    "endpoint": "POST /api/v1/recommendations/text",
+    "top_k": 5,
+    "all_requests_returned_five_dm_ids": true,
+    "all_repeat_orders_consistent": true,
+    "cases": {
+      "anger": {"sentence": "I am furious because nothing is going right today.", "status": 200, "meme_ids": ["DM-04916", "DM-04792", "DM-04941", "DM-04995", "DM-04803"]},
+      "fear": {"sentence": "I am terrified about what might happen next.", "status": 200, "meme_ids": ["DM-04337", "DM-04476", "DM-04273", "DM-04286", "DM-04436"]},
+      "joy": {"sentence": "I am so happy and excited that everything worked out.", "status": 200, "meme_ids": ["DM-05407", "DM-05278", "DM-05437", "DM-05396", "DM-04748"]},
+      "sadness": {"sentence": "I feel deeply sad and alone today.", "status": 200, "meme_ids": ["DM-05058", "DM-05027", "DM-05119", "DM-05364", "DM-05003"]},
+      "surprise": {"sentence": "I cannot believe that happened; I am completely shocked.", "status": 200, "meme_ids": ["DM-01999", "DM-01247", "DM-04548", "DM-01927", "DM-02739"]},
+      "disgust": {"sentence": "That was gross and made me feel sick.", "status": 200, "meme_ids": ["DM-01775", "DM-04099", "DM-04034", "DM-04114", "DM-04022"]}
+    }
+  },
+  "direct_emotion_recommendations": {
+    "endpoint": "GET /api/v1/recommendations/phase5/emotion?emotion={emotion}&limit=5",
+    "all_requests_returned_five_dm_ids": true,
+    "all_repeat_orders_consistent": true,
+    "cases": {
+      "anger": {"status": 200, "meme_ids": ["DM-04803", "DM-04799", "DM-04762", "DM-02486", "DM-04916"]},
+      "fear": {"status": 200, "meme_ids": ["DM-04436", "DM-04410", "DM-04404", "DM-04414", "DM-04286"]},
+      "joy": {"status": 200, "meme_ids": ["DM-05396", "DM-05455", "DM-05442", "DM-05267", "DM-05330"]},
+      "sadness": {"status": 200, "meme_ids": ["DM-05002", "DM-05166", "DM-05119", "DM-04935", "DM-05082"]},
+      "surprise": {"status": 200, "meme_ids": ["DM-04694", "DM-04632", "DM-04605", "DM-04662", "DM-04641"]},
+      "disgust": {"status": 200, "meme_ids": ["DM-04175", "DM-04194", "DM-04212", "DM-04034", "DM-04117"]}
+    }
+  },
+  "image_validation": {"endpoint_pattern": "GET /api/v1/phase5/memes/{meme_id}/image", "requests": 60, "passed": 60, "failed": 0, "criterion": "Every image_url returned HTTP 200 and a non-empty body; observed content types were image/jpeg or image/png."},
+  "invalid_emotion": {"request": "GET /api/v1/recommendations/phase5/emotion?emotion=invalid&limit=5", "status": 422, "passed": true, "validation_type": "string_pattern_mismatch", "validation_pattern": "^(anger|fear|joy|sadness|surprise|disgust)$"},
+  "issues": []
+}
