@@ -46,6 +46,18 @@ def _identifier(row: dict[str, str]) -> str:
     return value.strip()
 
 
+def _include_in_training(row: dict[str, str]) -> bool:
+    value = _column(row, "include_in_training")
+    if value is None:
+        raise ValueError("training manifest rows require include_in_training")
+    normalized = value.strip().lower()
+    if normalized in {"1", "true", "yes"}:
+        return True
+    if normalized in {"0", "false", "no", ""}:
+        return False
+    raise ValueError(f"invalid include_in_training value: {value!r}")
+
+
 def _read_csv(path: Path) -> list[dict[str, str]]:
     if not path.is_file():
         raise FileNotFoundError(f"required artifact is missing: {path}")
@@ -90,6 +102,7 @@ def load_expansion_artifacts(base: Path, *, strict_counts: bool = True) -> Expan
     inputs = _read_csv(base / "dameme_5500_model_inputs.csv")
     splits = _read_csv(base / "dameme_5500_dataset_splits.csv")
     manifest = _read_csv(base / "dameme_5500_training_manifest.csv")
+    training_manifest = [row for row in manifest if _include_in_training(row)]
     with np.load(base / "dameme_5500_minilm_embeddings.npz") as archive:
         id_key = next(
             (name for name in archive.files if _key(name) in {"memeid", "memeids", "ids"}), None
@@ -115,12 +128,23 @@ def load_expansion_artifacts(base: Path, *, strict_counts: bool = True) -> Expan
         np.linalg.norm(image, axis=1) < 1e-12
     ):
         raise ValueError("feature artifacts contain zero vectors")
+    split_ids = tuple(_identifier(row) for row in splits)
+    if len(set(split_ids)) != len(split_ids):
+        raise ValueError("split file contains duplicate meme IDs")
+    training_manifest_ids = tuple(_identifier(row) for row in training_manifest)
+    if len(set(training_manifest_ids)) != len(training_manifest_ids):
+        raise ValueError("training manifest candidates contain duplicate meme IDs")
     split_by_id = {
-        _identifier(row): (_column(row, "split", "dataset_split") or "").lower() for row in splits
+        meme_id: (_column(row, "split", "dataset_split") or "").lower()
+        for meme_id, row in zip(split_ids, splits, strict=True)
     }
-    manifest_by_id = {_identifier(row): row for row in manifest}
+    manifest_by_id = {
+        meme_id: row for meme_id, row in zip(training_manifest_ids, training_manifest, strict=True)
+    }
     if set(input_ids) != set(split_by_id) or set(input_ids) != set(manifest_by_id):
-        raise ValueError("model inputs, split file, and manifest must contain the same meme IDs")
+        raise ValueError(
+            "model inputs, split file, and included manifest candidates must contain the same meme IDs"
+        )
     ordered_splits = tuple(split_by_id[item] for item in input_ids)
     if any(split not in {"train", "validation", "test"} for split in ordered_splits):
         raise ValueError("splits must be train, validation, or test")
