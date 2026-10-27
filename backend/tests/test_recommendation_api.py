@@ -22,7 +22,11 @@ class FakeEngine:
         self.image, self.unavailable, self.text_calls = image, unavailable, []
 
     def status(self) -> dict[str, object]:
-        return {"ready": not self.unavailable, "detail": "missing assets" if self.unavailable else None, "meme_count": 1 if not self.unavailable else 0}
+        return {
+            "ready": not self.unavailable,
+            "detail": "missing assets" if self.unavailable else None,
+            "meme_count": 1 if not self.unavailable else 0,
+        }
 
     def options(self) -> dict[str, object]:
         if self.unavailable:
@@ -31,7 +35,15 @@ class FakeEngine:
 
     @staticmethod
     def _row() -> Recommendation:
-        return Recommendation("meme.jpg", 0.8, 0.7, None, 0.75, ("sarcasm",), "text similarity 0.800; source joy probability 0.700")
+        return Recommendation(
+            "meme.jpg",
+            0.8,
+            0.7,
+            None,
+            0.75,
+            ("sarcasm",),
+            "text similarity 0.800; source joy probability 0.700",
+        )
 
     def recommend_text(self, text: str, **kwargs: object) -> list[Recommendation]:
         if self.unavailable:
@@ -153,3 +165,4 @@ def test_existing_app_includes_recommendation_routes() -> None:
     paths = {route.path for route in create_app().routes}
     assert "/api/v1/recommendations/text" in paths
     assert "/api/v1/memes/{meme_id}/image" in paths
+    assert "/api/v1/emotion/text" in paths

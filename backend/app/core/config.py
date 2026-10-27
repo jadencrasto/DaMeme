@@ -40,20 +40,46 @@ class Settings(BaseSettings):
     recommendation_catalog_root: Path = Path("../data/retrieval/catalogs")
     recommendation_cross_encoder_model: str = "cross-encoder/ms-marco-MiniLM-L6-v2"
     recommendation_request_timeout_seconds: float = 15.0
+    expanded_emotion_text_model: Path | None = None
 
     def active_catalog(self) -> CatalogPaths:
         """Resolve only known catalog layouts; the legacy catalog remains default."""
         if self.recommendation_catalog == "memematch_281":
             export_root = Path("../data/retrieval/memematch_281/memematch_281")
-            return CatalogPaths("memematch_281", self.recommendation_index_dir, self.recommendation_metadata_csv, self.recommendation_image_root, 281, export_records=export_root.with_suffix(".records.json"), export_metadata=export_root.with_suffix(".metadata.json"))
+            return CatalogPaths(
+                "memematch_281",
+                self.recommendation_index_dir,
+                self.recommendation_metadata_csv,
+                self.recommendation_image_root,
+                281,
+                export_records=export_root.with_suffix(".records.json"),
+                export_metadata=export_root.with_suffix(".metadata.json"),
+            )
         if self.recommendation_catalog == "memematch_1000_v2":
             root = self.recommendation_catalog_root / "memematch_1000_v2"
             return CatalogPaths(
-                "memematch_1000_v2", root / "indexes", root / "memematch_1000_metadata_v2.csv",
-                root, 1000, export_records=root / "exports" / "memematch_1000_v2.records.json",
+                "memematch_1000_v2",
+                root / "indexes",
+                root / "memematch_1000_metadata_v2.csv",
+                root,
+                1000,
+                export_records=root / "exports" / "memematch_1000_v2.records.json",
                 export_metadata=root / "exports" / "memematch_1000_v2.metadata.json",
             )
-        raise ValueError("recommendation_catalog must be memematch_281 or memematch_1000_v2")
+        if self.recommendation_catalog == "dameme_5500_v1":
+            root = self.recommendation_catalog_root / "dameme_5500_v1"
+            return CatalogPaths(
+                "dameme_5500_v1",
+                root / "indexes",
+                root / "dameme_5500_metadata.csv",
+                root,
+                5500,
+                export_records=root / "exports" / "dameme_5500_v1.records.json",
+                export_metadata=root / "exports" / "dameme_5500_v1.metadata.json",
+            )
+        raise ValueError(
+            "recommendation_catalog must be memematch_281, memematch_1000_v2, or dameme_5500_v1"
+        )
 
     @property
     def allowed_origins(self) -> list[str]:
@@ -63,4 +89,3 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
-

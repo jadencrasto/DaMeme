@@ -1,11 +1,16 @@
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel, Field
 
 from app.core.config import get_settings
 from app.emotion import EmotionService
 
 router = APIRouter(tags=["emotion"])
+
+
+class TextEmotionRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=1000)
 
 
 def database() -> Path:
@@ -61,3 +66,19 @@ def predict(meme_id: int) -> dict[str, object]:
         raise HTTPException(503, str(exc)) from exc
     finally:
         service.close()
+
+
+@router.post("/emotion/text")
+def predict_text(request: TextEmotionRequest) -> dict[str, object]:
+    """Infer from an exported text-only model; image fusion is not applicable to a sentence."""
+    settings = get_settings()
+    if settings.expanded_emotion_text_model is None:
+        raise HTTPException(503, "No expanded text emotion model is configured")
+    try:
+        from app.emotion import PretrainedFeatureExtractor
+        from app.expanded_emotion import predict_text_embedding
+
+        embedding = PretrainedFeatureExtractor().text(request.text)
+        return predict_text_embedding(settings.expanded_emotion_text_model, embedding)
+    except (FileNotFoundError, ValueError, OSError, ImportError) as exc:
+        raise HTTPException(503, str(exc)) from exc
