@@ -19,7 +19,7 @@ class Phase5Unavailable(RuntimeError):
 
 
 class Phase6RecommendationService:
-    def __init__(self, bundle_dir: Path, text_model: Path, media_root: Path | None) -> None:
+    def __init__(self, bundle_dir: Path, text_model: Path | None, media_root: Path | None) -> None:
         self.bundle_dir, self.text_model, self.media_root = bundle_dir, text_model, media_root
         self._bundle: Phase5Bundle | None = None
         self._payload: dict[object, object] | None = None
@@ -32,7 +32,7 @@ class Phase6RecommendationService:
 
     def _load_text_model(self) -> dict[object, object]:
         if self._payload is None:
-            if not self.text_model.is_file():
+            if self.text_model is None or not self.text_model.is_file():
                 raise Phase5Unavailable("Phase 5 text model artifact is unavailable")
             try:
                 payload = pickle.loads(self.text_model.read_bytes())
@@ -110,6 +110,27 @@ class Phase6RecommendationService:
             embedding, scores, top_k=top_k, semantic_weight=0.8, emotion_weight=0.2
         )
 
+    def recommend_emotion(self, emotion: str, top_k: int) -> list[RankedMeme]:
+        """Rank the portable Phase 5 catalog by one stored emotion column."""
+        if emotion not in EMOTIONS:
+            raise ValueError(f"unsupported emotion: {emotion}")
+        if top_k < 1:
+            raise ValueError("top_k must be positive")
+        bundle = self._load_bundle()
+        column = EMOTIONS.index(emotion)
+        rows = [
+            RankedMeme(
+                meme_id=bundle.ids[index],
+                image_ref=bundle.image_refs[index],
+                semantic_similarity=0.0,
+                emotion_compatibility=float(score),
+                score=float(score),
+            )
+            for index, score in enumerate(bundle.emotions[:, column])
+            if np.isfinite(score)
+        ]
+        return sorted(rows, key=lambda row: (-row.score, row.meme_id))[:top_k]
+
     def image_path(self, meme_id: str) -> Path | None:
         bundle = self._load_bundle()
         try:
@@ -136,8 +157,8 @@ class Phase6RecommendationService:
 
 @lru_cache
 def get_phase6_service(
-    bundle_dir: str, text_model: str, media_root: str | None
+    bundle_dir: str, text_model: str | None, media_root: str | None
 ) -> Phase6RecommendationService:
     return Phase6RecommendationService(
-        Path(bundle_dir), Path(text_model), Path(media_root) if media_root else None
+        Path(bundle_dir), Path(text_model) if text_model else None, Path(media_root) if media_root else None
     )

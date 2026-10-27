@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { getEmotionRecommendations, getTextRecommendations, submitFeedback } from "./api";
+import { getEmotionRecommendations, getPhase5EmotionRecommendations, getPhase6TextRecommendations, getTextRecommendations, submitFeedback } from "./api";
 
 describe("recommendation API client", () => {
   afterEach(() => vi.unstubAllGlobals());
@@ -28,6 +28,20 @@ describe("recommendation API client", () => {
     expect(fetchMock.mock.calls[0][0]).toContain("mood=anxiety");
     expect(fetchMock.mock.calls[0][0]).toContain("exclude_meme_id=seen.jpg");
     expect(fetchMock.mock.calls[0][0]).not.toContain("text=");
+  });
+
+  it("posts Phase 6 text recommendation requests with the verified payload", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ predicted_emotions: { emotion_probabilities: {}, emotion_labels: [] }, recommendations: [] }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    await getPhase6TextRecommendations("late meeting");
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/api/v1/recommendations/text"), expect.objectContaining({ method: "POST", body: JSON.stringify({ text: "late meeting", top_k: 5 }) }));
+  });
+
+  it("requests Phase 5 direct-emotion recommendations", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ emotion: "joy", recommendations: [] }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    await getPhase5EmotionRecommendations("joy");
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/api/v1/recommendations/phase5/emotion?emotion=joy&limit=5"), expect.any(Object));
   });
 
   it("posts isolated product feedback", async () => {

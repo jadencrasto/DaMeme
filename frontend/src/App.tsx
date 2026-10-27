@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { HealthStatus } from "./components/HealthStatus";
 import { RecommendationCard } from "./components/RecommendationCard";
-import { CinematicRecommendationExperienceC2 } from "./components/CinematicRecommendationExperienceC2";
+import { Phase7RecommendationExperience } from "./components/Phase7RecommendationExperience";
 import { type Emotion, type Mood, type Recommendation, type RecommendationOptions, getEmotionRecommendations, getMoods, getRecommendationOptions, getRecommendationStatus, getTextRecommendations } from "./lib/api";
 import { saveHistory } from "./lib/sessionHistory";
 
@@ -50,5 +50,5 @@ function LegacyApp() {
 */
 
 export default function App() {
-  return <main className="shell"><nav aria-label="Primary navigation" className="nav"><a className="brand" href="#top">Da<span>Meme</span></a><div className="nav-links"><a href="#discover">Discover</a><HealthStatus /></div></nav><section id="top" className="hero"><p className="eyebrow">Emotion-aware meme discovery</p><h1>Every feeling deserves a <em>meme.</em></h1><p className="intro">Describe your moment or choose your mood. Find a meme that gets it.</p><div id="discover"><CinematicRecommendationExperienceC2 /></div></section><footer>Made for the moments that need a better reaction.</footer></main>;
+  return <main className="shell"><nav aria-label="Primary navigation" className="nav"><a className="brand" href="#top">Da<span>Meme</span></a><div className="nav-links"><a href="#discover">Discover</a><HealthStatus /></div></nav><section id="top" className="hero"><p className="eyebrow">Emotion-aware meme discovery</p><h1>Every feeling deserves a <em>meme.</em></h1><p className="intro">Describe your moment or choose your mood. Find a meme that gets it.</p><div id="discover"><Phase7RecommendationExperience /></div></section><footer>Made for the moments that need a better reaction.</footer></main>;
 }

@@ -164,5 +164,6 @@ def test_validation_unavailable_assets_and_safe_image_delivery(tmp_path: Path) -
 def test_existing_app_includes_recommendation_routes() -> None:
     paths = {route.path for route in create_app().routes}
     assert "/api/v1/recommendations/text" in paths
+    assert "/api/v1/recommendations/phase5/emotion" in paths
     assert "/api/v1/memes/{meme_id}/image" in paths
     assert "/api/v1/emotion/text" in paths

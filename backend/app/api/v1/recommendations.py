@@ -31,6 +31,23 @@ class Phase5TextRequest(BaseModel):
     top_k: int = Field(default=10, ge=1, le=50)
 
 
+def _phase5_response(row: object, service: object) -> dict[str, object]:
+    from app.phase5_retrieval import RankedMeme
+    from app.phase6_recommendations import Phase6RecommendationService
+
+    assert isinstance(row, RankedMeme)
+    assert isinstance(service, Phase6RecommendationService)
+    available = service.image_path(row.meme_id) is not None
+    return {
+        "meme_id": row.meme_id,
+        "image_available": available,
+        "image_url": f"/api/v1/phase5/memes/{quote(row.meme_id, safe='')}/image" if available else None,
+        "semantic_similarity": row.semantic_similarity,
+        "emotion_compatibility": row.emotion_compatibility,
+        "score": row.score,
+    }
+
+
 @router.post("/recommendations/text")
 def phase5_text_recommendations(request: Phase5TextRequest) -> dict[str, object]:
     """Phase 5 portable-bundle endpoint; the legacy GET route remains unchanged."""
@@ -48,19 +65,7 @@ def phase5_text_recommendations(request: Phase5TextRequest) -> dict[str, object]
         prediction, rows = service.recommend(request.text, request.top_k)
         return {
             "predicted_emotions": prediction,
-            "recommendations": [
-                {
-                    "meme_id": row.meme_id,
-                    "image_available": service.image_path(row.meme_id) is not None,
-                    "image_url": f"/api/v1/phase5/memes/{quote(row.meme_id, safe='')}/image"
-                    if service.image_path(row.meme_id) is not None
-                    else None,
-                    "semantic_similarity": row.semantic_similarity,
-                    "emotion_compatibility": row.emotion_compatibility,
-                    "score": row.score,
-                }
-                for row in rows
-            ],
+            "recommendations": [_phase5_response(row, service) for row in rows],
         }
     except (FileNotFoundError, ValueError, OSError, ImportError, Phase5Unavailable) as exc:
         raise HTTPException(503, str(exc)) from exc
@@ -86,16 +91,45 @@ def phase5_readiness() -> dict[str, object]:
     ).readiness()
 
 
+@router.get("/recommendations/phase5/emotion")
+def phase5_emotion_recommendations(
+    emotion: Annotated[str, Query(pattern="^(anger|fear|joy|sadness|surprise|disgust)$")],
+    limit: Annotated[int, Query(ge=1, le=50)] = 5,
+) -> dict[str, object]:
+    """Return Phase 5 bundle rows ranked by their stored emotion score."""
+    settings = get_settings()
+    if settings.phase5_bundle_dir is None:
+        raise HTTPException(503, "Phase 5 recommendation artifacts are not configured")
+    try:
+        from app.phase6_recommendations import Phase5Unavailable, get_phase6_service
+
+        service = get_phase6_service(
+            str(settings.phase5_bundle_dir),
+            str(settings.expanded_emotion_text_model) if settings.expanded_emotion_text_model else None,
+            str(settings.phase5_media_root) if settings.phase5_media_root else None,
+        )
+        rows = service.recommend_emotion(emotion, limit)
+        recommendations = []
+        for row in rows:
+            response = _phase5_response(row, service)
+            # Direct selection has no text query, so there is no semantic score.
+            response["semantic_similarity"] = None
+            recommendations.append(response)
+        return {"emotion": emotion, "recommendations": recommendations}
+    except (FileNotFoundError, ValueError, OSError, ImportError, Phase5Unavailable) as exc:
+        raise HTTPException(503, str(exc)) from exc
+
+
 @router.get("/phase5/memes/{meme_id}/image")
 def phase5_meme_image(meme_id: str) -> FileResponse:
     settings = get_settings()
-    if settings.phase5_bundle_dir is None or settings.expanded_emotion_text_model is None:
+    if settings.phase5_bundle_dir is None:
         raise HTTPException(503, "Phase 5 recommendation artifacts are not configured")
     from app.phase6_recommendations import get_phase6_service
 
     path = get_phase6_service(
         str(settings.phase5_bundle_dir),
-        str(settings.expanded_emotion_text_model),
+        str(settings.expanded_emotion_text_model) if settings.expanded_emotion_text_model else None,
         str(settings.phase5_media_root) if settings.phase5_media_root else None,
     ).image_path(meme_id)
     if path is None:

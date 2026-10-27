@@ -15,3 +15,23 @@ def test_catalog_selection_defaults_to_281_and_has_an_isolated_v2_layout() -> No
     assert str(catalog.index_dir).endswith("catalogs\\memematch_1000_v2\\indexes")
     with pytest.raises(ValueError, match="recommendation_catalog"):
         Settings(recommendation_catalog="unknown").active_catalog()
+
+
+def test_legacy_catalog_reuses_phase5_media_root_when_no_legacy_root_is_configured(
+    tmp_path,
+) -> None:
+    phase5_images = tmp_path / "phase5-images"
+    settings = Settings(
+        recommendation_image_root=None,
+        phase5_media_root=phase5_images,
+    )
+    assert settings.active_catalog().image_root == phase5_images
+
+
+def test_explicit_legacy_image_root_takes_precedence_over_phase5_media_root(tmp_path) -> None:
+    legacy_images, phase5_images = tmp_path / "legacy", tmp_path / "phase5"
+    settings = Settings(
+        recommendation_image_root=legacy_images,
+        phase5_media_root=phase5_images,
+    )
+    assert settings.active_catalog().image_root == legacy_images

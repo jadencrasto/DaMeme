@@ -13,6 +13,28 @@ export interface Recommendation {
   image_url: string | null;
 }
 
+export interface Phase6Recommendation {
+  meme_id: string;
+  image_available: boolean;
+  image_url: string | null;
+  semantic_similarity: number | null;
+  emotion_compatibility: number;
+  score: number;
+}
+
+export interface Phase6TextRecommendationResponse {
+  predicted_emotions: {
+    emotion_probabilities: Record<string, number>;
+    emotion_labels: string[];
+  };
+  recommendations: Phase6Recommendation[];
+}
+
+export interface Phase5EmotionRecommendationResponse {
+  emotion: Emotion;
+  recommendations: Phase6Recommendation[];
+}
+
 export interface RecommendationOptions { emotions: Emotion[]; sentiments: Sentiment[]; usage_categories: string[]; }
 export interface Mood { id: string; label: string; group: string; description: string; synonyms: string[]; classifier_weights: Record<string, number>; sentiment: Sentiment | null; }
 export interface MoodTaxonomy { moods: Mood[]; }
@@ -57,6 +79,18 @@ export function getTextRecommendations(input: { text?: string; emotion?: Emotion
   const { usage, excludeMemeIds = [], ...values } = input;
   const query = new URLSearchParams(parameters(values, usage)); excludeMemeIds.forEach((value) => query.append("exclude_meme_id", value));
   return request<Recommendation[]>(`/api/v1/recommendations/text?${query}`);
+}
+
+export function getPhase6TextRecommendations(text: string, topK = 5) {
+  return request<Phase6TextRecommendationResponse>("/api/v1/recommendations/text", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, top_k: topK }),
+  });
+}
+
+export function getPhase5EmotionRecommendations(emotion: Emotion, limit = 5) {
+  return request<Phase5EmotionRecommendationResponse>(`/api/v1/recommendations/phase5/emotion?emotion=${encodeURIComponent(emotion)}&limit=${limit}`);
 }
 
 export function getEmotionRecommendations(input: { emotion: Emotion; sentiment?: Sentiment; usage: string[]; limit: number; }) {

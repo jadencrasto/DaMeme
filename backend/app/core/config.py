@@ -48,11 +48,14 @@ class Settings(BaseSettings):
         """Resolve only known catalog layouts; the legacy catalog remains default."""
         if self.recommendation_catalog == "memematch_281":
             export_root = Path("../data/retrieval/memematch_281/memematch_281")
+            # The legacy catalog keys are image filenames. When Phase 5 media is
+            # configured, it is a verified compatible root for those filenames.
+            image_root = self.recommendation_image_root or self.phase5_media_root
             return CatalogPaths(
                 "memematch_281",
                 self.recommendation_index_dir,
                 self.recommendation_metadata_csv,
-                self.recommendation_image_root,
+                image_root,
                 281,
                 export_records=export_root.with_suffix(".records.json"),
                 export_metadata=export_root.with_suffix(".metadata.json"),
