@@ -69,14 +69,19 @@ def _read_csv(path: Path) -> list[dict[str, str]]:
 
 
 def _binary(value: str | None, label: str) -> int:
-    if value is None:
+    if value is None or not value.strip():
         raise ValueError(f"MOOD row is missing {label} annotation")
-    normalized = value.strip().lower()
-    if normalized in {"1", "true", "yes", label}:
+    normalized = value.strip()
+    if normalized == "1":
         return 1
-    if normalized in {"0", "false", "no", f"not_{label}", ""}:
+    if normalized == "0":
         return 0
     raise ValueError(f"invalid MOOD {label} annotation: {value!r}")
+
+
+def _split(value: str | None) -> str:
+    normalized = (value or "").strip().lower()
+    return "validation" if normalized == "val" else normalized
 
 
 @dataclass(frozen=True)
@@ -135,7 +140,7 @@ def load_expansion_artifacts(base: Path, *, strict_counts: bool = True) -> Expan
     if len(set(training_manifest_ids)) != len(training_manifest_ids):
         raise ValueError("training manifest candidates contain duplicate meme IDs")
     split_by_id = {
-        meme_id: (_column(row, "split", "dataset_split") or "").lower()
+        meme_id: _split(_column(row, "split", "dataset_split"))
         for meme_id, row in zip(split_ids, splits, strict=True)
     }
     manifest_by_id = {
@@ -167,7 +172,9 @@ def load_expansion_artifacts(base: Path, *, strict_counts: bool = True) -> Expan
         source = (_column(row, "source", "dataset_source", "dataset") or "").strip()
         sources.append(source)
         if source.lower().replace("_", "-") in MOOD_SOURCES:
-            labels.append([_binary(_column(row, label), label) for label in EMOTIONS])
+            labels.append(
+                [_binary(_column(row, f"label_{label}"), f"label_{label}") for label in EMOTIONS]
+            )
             sentiment = (_column(row, "sentiment", "sentiment_label") or "").strip().lower()
             if sentiment and sentiment not in SENTIMENTS:
                 raise ValueError(f"invalid MOOD sentiment label: {sentiment!r}")

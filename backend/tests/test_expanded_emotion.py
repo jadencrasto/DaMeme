@@ -38,12 +38,12 @@ def _artifacts(tmp_path):
         "include_in_training",
         "source",
         "sha256",
-        "anger",
-        "fear",
-        "joy",
-        "sadness",
-        "surprise",
-        "disgust",
+        "label_anger",
+        "label_fear",
+        "label_joy",
+        "label_sadness",
+        "label_surprise",
+        "label_disgust",
         "sentiment",
     ]
     _write(
@@ -55,12 +55,12 @@ def _artifacts(tmp_path):
                 "include_in_training": "True",
                 "source": "MOOD",
                 "sha256": value,
-                "anger": "1" if value == "one" else "0",
-                "fear": "0",
-                "joy": "1" if value == "two" else "0",
-                "sadness": "0",
-                "surprise": "0",
-                "disgust": "0",
+                "label_anger": "1" if value == "one" else "0",
+                "label_fear": "0",
+                "label_joy": "1" if value == "two" else "0",
+                "label_sadness": "0",
+                "label_surprise": "0",
+                "label_disgust": "0",
                 "sentiment": "positive",
             }
             for value in ids
@@ -96,6 +96,40 @@ def test_load_expansion_rejects_feature_id_misalignment(tmp_path):
         load_expansion_artifacts(tmp_path, strict_counts=False)
 
 
+@pytest.mark.parametrize(
+    ("column", "value", "message"),
+    [
+        ("label_anger", "", "missing label_anger"),
+        ("label_anger", "2", "invalid MOOD label_anger"),
+    ],
+)
+def test_load_expansion_rejects_missing_or_invalid_prefixed_mood_labels(
+    tmp_path, column, value, message
+):
+    _artifacts(tmp_path)
+    path = tmp_path / "dameme_5500_training_manifest.csv"
+    with path.open(encoding="utf-8", newline="") as handle:
+        rows = list(csv.DictReader(handle))
+    rows[0][column] = value
+    _write(path, list(rows[0]), rows)
+
+    with pytest.raises(ValueError, match=message):
+        load_expansion_artifacts(tmp_path, strict_counts=False)
+
+
+def test_load_expansion_normalizes_val_split(tmp_path):
+    _artifacts(tmp_path)
+    path = tmp_path / "dameme_5500_dataset_splits.csv"
+    with path.open(encoding="utf-8", newline="") as handle:
+        rows = list(csv.DictReader(handle))
+    rows[1]["split"] = "val"
+    _write(path, ["meme_id", "split"], rows)
+
+    data = load_expansion_artifacts(tmp_path, strict_counts=False)
+
+    assert data.splits == ("train", "validation", "test")
+
+
 def test_text_prediction_rejects_missing_or_wrong_dimension_artifacts(tmp_path):
     with pytest.raises(FileNotFoundError):
         predict_text_embedding(tmp_path / "missing.pkl", np.ones(TEXT_DIMENSION, dtype=np.float32))
@@ -120,12 +154,12 @@ def test_load_expansion_filters_full_manifest_to_training_candidates(tmp_path):
         "include_in_training",
         "source",
         "sha256",
-        "anger",
-        "fear",
-        "joy",
-        "sadness",
-        "surprise",
-        "disgust",
+        "label_anger",
+        "label_fear",
+        "label_joy",
+        "label_sadness",
+        "label_surprise",
+        "label_disgust",
         "sentiment",
     ]
     candidates = [
@@ -134,12 +168,12 @@ def test_load_expansion_filters_full_manifest_to_training_candidates(tmp_path):
             "include_in_training": "True",
             "source": "MOOD",
             "sha256": meme_id,
-            "anger": "0",
-            "fear": "0",
-            "joy": "1",
-            "sadness": "0",
-            "surprise": "0",
-            "disgust": "0",
+            "label_anger": "0",
+            "label_fear": "0",
+            "label_joy": "1",
+            "label_sadness": "0",
+            "label_surprise": "0",
+            "label_disgust": "0",
             "sentiment": "positive",
         }
         for meme_id in ids
