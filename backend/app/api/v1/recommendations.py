@@ -1,8 +1,10 @@
 from typing import Annotated
 from urllib.parse import quote
 
+import numpy as np
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
+from pydantic import BaseModel, Field
 
 from app.core.config import get_settings
 from app.hybrid_retrieval import RetrievalMode
@@ -23,6 +25,46 @@ router = APIRouter(tags=["recommendations"])
 Engine = Annotated[RecommendationEngine, Depends(get_recommendation_engine)]
 Emotion = Annotated[str | None, Query(pattern="^(anger|fear|joy|sadness|surprise|disgust)$")]
 Sentiment = Annotated[str | None, Query(pattern="^(positive|negative|neutral)$")]
+
+
+class Phase5TextRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=1000)
+    top_k: int = Field(default=10, ge=1, le=50)
+
+
+@router.post("/recommendations/text")
+def phase5_text_recommendations(request: Phase5TextRequest) -> dict[str, object]:
+    """Phase 5 portable-bundle endpoint; the legacy GET route remains unchanged."""
+    settings = get_settings()
+    if settings.phase5_bundle_dir is None or settings.expanded_emotion_text_model is None:
+        raise HTTPException(503, "Phase 5 recommendation artifacts are not configured")
+    try:
+        from app.emotion import PretrainedFeatureExtractor
+        from app.expanded_emotion import EMOTIONS, predict_text_embedding
+        from app.phase5_retrieval import Phase5Bundle
+
+        embedding = PretrainedFeatureExtractor().text(request.text)
+        prediction = predict_text_embedding(settings.expanded_emotion_text_model, embedding)
+        user_scores = [prediction["emotion_probabilities"][label] for label in EMOTIONS]
+        bundle = Phase5Bundle.load(settings.phase5_bundle_dir)
+        rows = bundle.rank(
+            embedding, np.asarray(user_scores, dtype=np.float32), top_k=request.top_k
+        )
+        return {
+            "predicted_emotions": prediction,
+            "recommendations": [
+                {
+                    "meme_id": row.meme_id,
+                    "image_ref": row.image_ref,
+                    "semantic_similarity": row.semantic_similarity,
+                    "emotion_compatibility": row.emotion_compatibility,
+                    "score": row.score,
+                }
+                for row in rows
+            ],
+        }
+    except (FileNotFoundError, ValueError, OSError, ImportError) as exc:
+        raise HTTPException(503, str(exc)) from exc
 
 
 def _weights(semantic: float, emotion: float, sentiment: float) -> RankingWeights:
@@ -87,7 +129,23 @@ def text_recommendations(
         raise HTTPException(422, "candidate_limit must be at least limit")
     weights = _weights(semantic_weight, emotion_weight, sentiment_weight)
     try:
-        rows = engine.recommend_text(text or "", emotion=emotion, sentiment=sentiment, usage=usage or [], weights=weights, candidate_limit=candidate_limit, min_semantic_similarity=min_semantic_similarity, diversity_max_per_template=max_per_template, exclude_unsafe=exclude_unsafe, retrieval_mode=retrieval_mode, bm25_candidate_limit=bm25_candidate_limit, cross_encoder_limit=cross_encoder_limit, mood=mood, exclude_meme_ids=set(exclude_meme_id or []), limit=limit)
+        rows = engine.recommend_text(
+            text or "",
+            emotion=emotion,
+            sentiment=sentiment,
+            usage=usage or [],
+            weights=weights,
+            candidate_limit=candidate_limit,
+            min_semantic_similarity=min_semantic_similarity,
+            diversity_max_per_template=max_per_template,
+            exclude_unsafe=exclude_unsafe,
+            retrieval_mode=retrieval_mode,
+            bm25_candidate_limit=bm25_candidate_limit,
+            cross_encoder_limit=cross_encoder_limit,
+            mood=mood,
+            exclude_meme_ids=set(exclude_meme_id or []),
+            limit=limit,
+        )
         return [_response(item, engine) for item in rows]
     except RecommendationUnavailable as exc:
         raise HTTPException(503, str(exc)) from exc
@@ -111,7 +169,15 @@ def emotion_recommendations(
 ) -> list[RecommendationResponse]:
     weights = _weights(0.0, emotion_weight, sentiment_weight)
     try:
-        rows = engine.recommend_emotion(emotion, sentiment=sentiment, usage=usage or [], weights=weights, diversity_max_per_template=max_per_template, exclude_unsafe=exclude_unsafe, limit=limit)
+        rows = engine.recommend_emotion(
+            emotion,
+            sentiment=sentiment,
+            usage=usage or [],
+            weights=weights,
+            diversity_max_per_template=max_per_template,
+            exclude_unsafe=exclude_unsafe,
+            limit=limit,
+        )
         return [_response(item, engine) for item in rows]
     except RecommendationUnavailable as exc:
         raise HTTPException(503, str(exc)) from exc
