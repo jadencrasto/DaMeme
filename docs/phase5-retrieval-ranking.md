@@ -32,3 +32,19 @@ Expected outputs are `$OUT/phase5_bundle.npz` and `$OUT/phase5_metadata.json`. C
 ## Evaluation protocol and limitation
 
 Offline evaluation should use validation queries while selecting any weights and reserve test queries for one final report. Candidate pools must exclude the query itself and must be held fixed for semantic-only versus semantic-plus-emotion comparisons. A source-faithful automatic relevance proxy can define a candidate as relevant only when both MOOD records have at least one shared positive six-class label; report Precision@K, Recall@K, HitRate@K, and nDCG@K by query emotion and ranking mode. This measures label agreement, not human satisfaction, humor, or contextual appropriateness. MemeMatch is excluded from supervised MOOD evaluation because its annotations are not equivalent targets.
+
+## Offline evaluation
+
+Run this after building the bundle; it does not rebuild indexes, embeddings, or model scores:
+
+```bash
+python -m app.phase5_evaluation \
+  --base "$BASE" \
+  --bundle "$OUT" \
+  --output-dir "$OUT/evaluation" \
+  --emotion-weights 0,0.1,0.2,0.3,0.4
+```
+
+The primary protocol uses held-out MOOD test records as queries and **train-split-only** catalog candidates. It excludes the query ID and candidates with the same supplied perceptual/content hash. A candidate is relevant only if it is also a MOOD record and shares at least one positive ground-truth six-emotion label. Labels are never input to ranking: query text vectors and query emotion vectors come from the precomputed MiniLM and GATED bundle values. Queries with no relevant eligible candidate are excluded from metric averages and counted explicitly.
+
+Weight selection happens exclusively on the validation split using nDCG@10. The final report writes `phase5_evaluation.json` and `phase5_evaluation.csv`, including semantic-only, the original 0.8/0.2 baseline, the validation-selected method, per-emotion nDCG/query counts, aggregate Precision/Recall/HitRate/nDCG at 5 and 10, and percentage-point deltas from semantic-only. This remains automatic label-agreement evaluation, not evidence of human meme usefulness or humor.
