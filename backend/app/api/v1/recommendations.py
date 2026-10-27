@@ -1,7 +1,6 @@
 from typing import Annotated
 from urllib.parse import quote
 
-import numpy as np
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
@@ -39,23 +38,23 @@ def phase5_text_recommendations(request: Phase5TextRequest) -> dict[str, object]
     if settings.phase5_bundle_dir is None or settings.expanded_emotion_text_model is None:
         raise HTTPException(503, "Phase 5 recommendation artifacts are not configured")
     try:
-        from app.emotion import PretrainedFeatureExtractor
-        from app.expanded_emotion import EMOTIONS, predict_text_embedding
-        from app.phase5_retrieval import Phase5Bundle
+        from app.phase6_recommendations import Phase5Unavailable, get_phase6_service
 
-        embedding = PretrainedFeatureExtractor().text(request.text)
-        prediction = predict_text_embedding(settings.expanded_emotion_text_model, embedding)
-        user_scores = [prediction["emotion_probabilities"][label] for label in EMOTIONS]
-        bundle = Phase5Bundle.load(settings.phase5_bundle_dir)
-        rows = bundle.rank(
-            embedding, np.asarray(user_scores, dtype=np.float32), top_k=request.top_k
+        service = get_phase6_service(
+            str(settings.phase5_bundle_dir),
+            str(settings.expanded_emotion_text_model),
+            str(settings.phase5_media_root) if settings.phase5_media_root else None,
         )
+        prediction, rows = service.recommend(request.text, request.top_k)
         return {
             "predicted_emotions": prediction,
             "recommendations": [
                 {
                     "meme_id": row.meme_id,
-                    "image_ref": row.image_ref,
+                    "image_available": service.image_path(row.meme_id) is not None,
+                    "image_url": f"/api/v1/phase5/memes/{quote(row.meme_id, safe='')}/image"
+                    if service.image_path(row.meme_id) is not None
+                    else None,
                     "semantic_similarity": row.semantic_similarity,
                     "emotion_compatibility": row.emotion_compatibility,
                     "score": row.score,
@@ -63,8 +62,45 @@ def phase5_text_recommendations(request: Phase5TextRequest) -> dict[str, object]
                 for row in rows
             ],
         }
-    except (FileNotFoundError, ValueError, OSError, ImportError) as exc:
+    except (FileNotFoundError, ValueError, OSError, ImportError, Phase5Unavailable) as exc:
         raise HTTPException(503, str(exc)) from exc
+
+
+@router.get("/recommendations/phase5/readiness")
+def phase5_readiness() -> dict[str, object]:
+    settings = get_settings()
+    if settings.phase5_bundle_dir is None or settings.expanded_emotion_text_model is None:
+        return {
+            "ready": False,
+            "detail": "Phase 5 recommendation artifacts are not configured",
+            "bundle_count": 0,
+            "text_model_ready": False,
+            "media_available": False,
+        }
+    from app.phase6_recommendations import get_phase6_service
+
+    return get_phase6_service(
+        str(settings.phase5_bundle_dir),
+        str(settings.expanded_emotion_text_model),
+        str(settings.phase5_media_root) if settings.phase5_media_root else None,
+    ).readiness()
+
+
+@router.get("/phase5/memes/{meme_id}/image")
+def phase5_meme_image(meme_id: str) -> FileResponse:
+    settings = get_settings()
+    if settings.phase5_bundle_dir is None or settings.expanded_emotion_text_model is None:
+        raise HTTPException(503, "Phase 5 recommendation artifacts are not configured")
+    from app.phase6_recommendations import get_phase6_service
+
+    path = get_phase6_service(
+        str(settings.phase5_bundle_dir),
+        str(settings.expanded_emotion_text_model),
+        str(settings.phase5_media_root) if settings.phase5_media_root else None,
+    ).image_path(meme_id)
+    if path is None:
+        raise HTTPException(404, "Meme image is unavailable locally")
+    return FileResponse(path, filename=path.name)
 
 
 def _weights(semantic: float, emotion: float, sentiment: float) -> RankingWeights:

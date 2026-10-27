@@ -42,6 +42,7 @@ class Settings(BaseSettings):
     recommendation_request_timeout_seconds: float = 15.0
     expanded_emotion_text_model: Path | None = None
     phase5_bundle_dir: Path | None = None
+    phase5_media_root: Path | None = None
 
     def active_catalog(self) -> CatalogPaths:
         """Resolve only known catalog layouts; the legacy catalog remains default."""
