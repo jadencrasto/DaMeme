@@ -6,9 +6,24 @@ import pytest
 from app.expanded_emotion import (
     IMAGE_DIMENSION,
     TEXT_DIMENSION,
+    _binary,
     load_expansion_artifacts,
     predict_text_embedding,
 )
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [("0", 0), (" 0.0 ", 0), (0, 0), ("1", 1), ("1.0", 1), (1.0, 1)],
+)
+def test_binary_accepts_numeric_zero_and_one_representations(value, expected):
+    assert _binary(value, "label_anger") == expected
+
+
+@pytest.mark.parametrize("value", [None, "", "   ", "NaN", "inf", "-1", "0.2", "0.9", "true"])
+def test_binary_rejects_missing_nonfinite_and_nonbinary_values(value):
+    with pytest.raises(ValueError):
+        _binary(value, "label_anger")
 
 
 def _write(path, fields, rows):

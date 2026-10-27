@@ -68,15 +68,18 @@ def _read_csv(path: Path) -> list[dict[str, str]]:
     return rows
 
 
-def _binary(value: str | None, label: str) -> int:
-    if value is None or not value.strip():
+def _binary(value: object | None, label: str) -> int:
+    if value is None or (isinstance(value, str) and not value.strip()):
         raise ValueError(f"MOOD row is missing {label} annotation")
-    normalized = value.strip()
-    if normalized == "1":
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"invalid MOOD {label} annotation: {value!r}") from exc
+    if not np.isfinite(numeric) or numeric < 0 or numeric not in {0.0, 1.0}:
+        raise ValueError(f"invalid MOOD {label} annotation: {value!r}")
+    if numeric == 1.0:
         return 1
-    if normalized == "0":
-        return 0
-    raise ValueError(f"invalid MOOD {label} annotation: {value!r}")
+    return 0
 
 
 def _split(value: str | None) -> str:
